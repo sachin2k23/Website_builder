@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+@import "./styles/theme.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -141,4 +142,85 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
   }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * VisualCraft Editor Theme System
+ * Uses CSS variables for light/dark mode switching
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+html[data-theme="light"] {
+  /* Canvas & Panels */
+  --vc-bg-canvas:        #F0F2F8;
+  --vc-bg-panel:         #FFFFFF;
+  --vc-bg-panel-2:       #F8FAFF;
+  --vc-bg-input:         #F3F6FB;
+  
+  /* Text */
+  --vc-text-primary:     #0F2348;
+  --vc-text-muted:       #5E6F8E;
+  --vc-text-label:       #AAB8D4;
+  
+  /* Borders & Dividers */
+  --vc-border:           #D8E1F0;
+  --vc-border-section:   #EEF2FA;
+  
+  /* Accent */
+  --vc-accent:           #2348D7;
+  --vc-accent-light:     #EEF3FF;
+  --vc-accent-hover:     #1B3FC8;
+  
+  /* Semantic */
+  --vc-danger:           #EF4444;
+  --vc-shadow:           rgba(35, 72, 215, 0.10);
+  --vc-success:          #0F9C5A;
+  --vc-success-light:    #EDFAF3;
+}
+
+html[data-theme="dark"] {
+  /* Canvas & Panels */
+  --vc-bg-canvas:        #0F1117;
+  --vc-bg-panel:         #1A1D27;
+  --vc-bg-panel-2:       #1F2335;
+  --vc-bg-input:         #252840;
+  
+  /* Text */
+  --vc-text-primary:     #F8FAFC;
+  --vc-text-muted:       #94A3B8;
+  --vc-text-label:       #4A5568;
+  
+  /* Borders & Dividers */
+  --vc-border:           #2D3147;
+  --vc-border-section:   #252840;
+  
+  /* Accent */
+  --vc-accent:           #4F8EF7;
+  --vc-accent-light:     #1E2D4F;
+  --vc-accent-hover:     #3B7AE8;
+  
+  /* Semantic */
+  --vc-danger:           #F87171;
+  --vc-shadow:           rgba(0, 0, 0, 0.40);
+  --vc-success:          #22C55E;
+  --vc-success-light:    #1F2937;
+}
+
+/* Default to light theme */
+html {
+  --vc-bg-canvas:        #F0F2F8;
+  --vc-bg-panel:         #FFFFFF;
+  --vc-bg-panel-2:       #F8FAFF;
+  --vc-bg-input:         #F3F6FB;
+  --vc-text-primary:     #0F2348;
+  --vc-text-muted:       #5E6F8E;
+  --vc-text-label:       #AAB8D4;
+  --vc-border:           #D8E1F0;
+  --vc-border-section:   #EEF2FA;
+  --vc-accent:           #2348D7;
+  --vc-accent-light:     #EEF3FF;
+  --vc-accent-hover:     #1B3FC8;
+  --vc-danger:           #EF4444;
+  --vc-shadow:           rgba(35, 72, 215, 0.10);
+  --vc-success:          #0F9C5A;
+  --vc-success-light:    #EDFAF3;
 }

@@ -1,0 +1,52 @@
+/**
+ * VisualCraft Theme System
+ * Light and dark themes using CSS custom properties
+ */
+
+/* Light theme (default) */
+html, [data-theme="light"] {
+  --bg-canvas:      #F0F2F8;
+  --bg-panel:       #FFFFFF;
+  --bg-panel-2:     #F8FAFF;
+  --bg-input:       #F3F6FB;
+  --border:         #D8E1F0;
+  --border-section: #EEF2FA;
+  --text-primary:   #0F2348;
+  --text-muted:     #5E6F8E;
+  --text-label:     #AAB8D4;
+  --accent:         #2348D7;
+  --accent-light:   #EEF3FF;
+  --accent-hover:   #1B3FC8;
+  --danger:         #EF4444;
+  --shadow:         rgba(35, 72, 215, 0.10);
+  color-scheme: light;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --bg-canvas:      #0F1117;
+  --bg-panel:       #1A1D27;
+  --bg-panel-2:     #1F2335;
+  --bg-input:       #252840;
+  --border:         #2D3147;
+  --border-section: #252840;
+  --text-primary:   #F8FAFC;
+  --text-muted:     #94A3B8;
+  --text-label:     #4A5568;
+  --accent:         #4F8EF7;
+  --accent-light:   #1E2D4F;
+  --accent-hover:   #3B7AE8;
+  --danger:         #F87171;
+  --shadow:         rgba(0, 0, 0, 0.40);
+  color-scheme: dark;
+}
+
+/* Canvas page itself stays white in both themes - it's the content being designed */
+[data-theme="dark"] .canvas-page {
+  background-color: #FFFFFF !important;
+}
+
+/* Smooth transition for theme changes */
+html {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}

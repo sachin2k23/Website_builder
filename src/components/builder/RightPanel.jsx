@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import {
   ChevronDown, X,
   BringToFront, SendToBack,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { HexColorPicker } from 'react-colorful'
 import { BREAKPOINTS, getCanvasWidth } from '../../utils/responsive'
+import BoxModelVisual from './box-model/BoxModelVisual'
 
 /**
  * Section component - Clean collapsible panel
@@ -449,6 +450,13 @@ export default function RightPanel({
 }) {
   const [showBorder, setShowBorder] = useState(!!selected?.borderColor)
   const [showShadow, setShowShadow] = useState(!!selected?.shadowColor)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // Fix state reset when element changes
+  useEffect(() => {
+    setShowBorder(!!selected?.borderColor)
+    setShowShadow(!!selected?.shadowColor)
+  }, [selected?.id])
 
   const isText  = selected && TEXT_TYPES.includes(selected.type)
   const isImage = selected?.type === 'image'
@@ -462,29 +470,78 @@ export default function RightPanel({
       {selected ? (
         <>
           {/* ── Header ── */}
-          <div className="px-4 py-3 border-b border-[#EEF2FA] shrink-0 flex items-center justify-between bg-gradient-to-b from-[#F8FAFF] to-white">
-            <div>
-              <p className="text-[#AAB8D4] text-[9px] font-semibold uppercase tracking-widest">ELEMENT</p>
-              <p className="text-[#0F2348] text-sm font-bold mt-1 capitalize">{selected.type}</p>
-              <p className="text-[#2348D7] text-[9px] font-semibold mt-1">{breakpoint?.label}</p>
+          <div className="px-4 py-3 border-b border-[#EEF2FA] shrink-0 bg-gradient-to-b from-[#F8FAFF] to-white space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[#AAB8D4] text-[9px] font-semibold uppercase tracking-widest">ELEMENT</p>
+                <p className="text-[#0F2348] text-sm font-bold mt-1 capitalize">{selected.type}</p>
+                <p className="text-[#2348D7] text-[9px] font-semibold mt-1">{breakpoint?.label}</p>
+              </div>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => onDuplicate(selected.id)}
+                  title="Duplicate"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center border border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7] hover:text-[#2348D7] hover:bg-[#EEF3FF] transition-all text-sm font-semibold"
+                >
+                  ⧉
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  title="Delete"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center border border-[#E2E8F4] text-[#8A9ABB] hover:border-red-300 hover:text-red-400 hover:bg-red-50 transition-all"
+                >
+                  <X size={14} />
+                </button>
+              </div>
             </div>
-            <div className="flex gap-1">
-              <button
-                onClick={() => onDuplicate(selected.id)}
-                title="Duplicate"
-                className="w-8 h-8 rounded-lg flex items-center justify-center border border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7] hover:text-[#2348D7] hover:bg-[#EEF3FF] transition-all text-sm font-semibold"
-              >
-                ⧉
-              </button>
-              <button
-                onClick={() => onDelete(selected.id)}
-                title="Delete"
-                className="w-8 h-8 rounded-lg flex items-center justify-center border border-[#E2E8F4] text-[#8A9ABB] hover:border-red-300 hover:text-red-400 hover:bg-red-50 transition-all"
-              >
-                <X size={14} />
-              </button>
-            </div>
+            {/* Element name field */}
+            <input
+              type="text"
+              value={selected.label || selected.type}
+              onChange={(e) => onUpdate(selected.id, { label: e.target.value })}
+              placeholder="Element name"
+              className="w-full px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded outline-none focus:border-[#2348D7] transition-colors"
+            />
+
+            {/* Delete Confirmation Dialog */}
+            {showDeleteConfirm && (
+              <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[100]">
+                <div className="bg-white rounded-lg shadow-xl p-4 w-96 max-w-[calc(100%-2rem)]">
+                  <h3 className="text-sm font-bold text-[#0F2348] mb-2">Delete Element?</h3>
+                  <p className="text-xs text-[#5E6F8E] mb-4">This action cannot be undone. The element will be permanently deleted.</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        onDelete(selected.id)
+                        setShowDeleteConfirm(false)
+                      }}
+                      className="flex-1 py-2 bg-red-500 text-white text-xs font-medium rounded hover:bg-red-600 transition-colors"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="flex-1 py-2 bg-[#F3F6FB] text-[#5E6F8E] text-xs font-medium rounded hover:bg-[#E3ECFF] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Content field for text elements */}
+          {isText && (
+            <Section title="Content" defaultOpen={true}>
+              <textarea
+                value={selected.content || ''}
+                onChange={(e) => onUpdate(selected.id, { content: e.target.value })}
+                placeholder="Element text..."
+                className="w-full h-24 px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded outline-none focus:border-[#2348D7] resize-none"
+              />
+            </Section>
+          )}
 
           {/* Image upload */}
           {isImage && <ImageUploadSection selected={selected} onUpdate={onUpdate} />}
@@ -510,8 +567,112 @@ export default function RightPanel({
                 <NumberInput label="Rotation" value={Math.round(selected.rotation || 0)} suffix="°" onChange={val => update('rotation', val)} />
                 <NumberInput label="Z-Index"   value={Math.round(selected.zIndex   || 0)}         onChange={val => update('zIndex',    val)} />
               </div>
+              
+              {/* Display mode selector */}
+              <div>
+                <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Display</p>
+                <div className="grid grid-cols-3 gap-1">
+                  {['block', 'flex', 'grid'].map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => {
+                        const updateObj = { display: mode }
+                        if (mode === 'flex') {
+                          updateObj.flexDirection = 'row'
+                          updateObj.alignItems = 'center'
+                          updateObj.justifyContent = 'flex-start'
+                          updateObj.gap = 8
+                        } else if (mode === 'grid') {
+                          updateObj.gridCols = 2
+                          updateObj.gap = 16
+                        }
+                        onUpdate(selected.id, updateObj)
+                      }}
+                      className={`py-1.5 rounded text-[10px] font-semibold capitalize transition-colors border ${
+                        (selected.display || 'block') === mode
+                          ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
+                          : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Flex options */}
+              {selected.display === 'flex' && (
+                <div className="space-y-2 pt-2 border-t border-[#EEF2FA]">
+                  <div>
+                    <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Direction</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {['row', 'column'].map(dir => (
+                        <button
+                          key={dir}
+                          onClick={() => onUpdate(selected.id, { flexDirection: dir })}
+                          className={`py-1.5 rounded text-[9px] font-semibold capitalize transition-colors border ${
+                            (selected.flexDirection || 'row') === dir
+                              ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
+                              : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'
+                          }`}
+                        >
+                          {dir}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Align Items</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {['flex-start', 'center', 'flex-end', 'stretch'].map(align => (
+                        <button
+                          key={align}
+                          onClick={() => onUpdate(selected.id, { alignItems: align })}
+                          className={`py-1.5 rounded text-[9px] font-semibold transition-colors border ${
+                            (selected.alignItems || 'center') === align
+                              ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
+                              : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'
+                          }`}
+                        >
+                          {align.replace('flex-', '')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Justify Content</p>
+                    <div className="grid grid-cols-2 gap-1">
+                      {['flex-start', 'center', 'flex-end', 'space-between'].map(justify => (
+                        <button
+                          key={justify}
+                          onClick={() => onUpdate(selected.id, { justifyContent: justify })}
+                          className={`py-1.5 rounded text-[9px] font-semibold transition-colors border ${
+                            (selected.justifyContent || 'flex-start') === justify
+                              ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
+                              : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'
+                          }`}
+                        >
+                          {justify.replace('flex-', '')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <NumberInput label="Gap" value={selected.gap || 8} suffix="px" onChange={val => onUpdate(selected.id, { gap: Math.max(0, val) })} />
+                </div>
+              )}
+
+              {/* Grid options */}
+              {selected.display === 'grid' && (
+                <div className="space-y-2 pt-2 border-t border-[#EEF2FA]">
+                  <NumberInput label="Columns" value={selected.gridCols || 2} onChange={val => onUpdate(selected.id, { gridCols: Math.max(1, val) })} />
+                  <NumberInput label="Gap" value={selected.gap || 16} suffix="px" onChange={val => onUpdate(selected.id, { gap: Math.max(0, val) })} />
+                </div>
+              )}
             </div>
           </Section>
+
+          {/* SPACING / BOX MODEL */}
+          <BoxModelVisual element={selected} onUpdate={onUpdate} />
 
           {/* APPEARANCE */}
           <Section title="Appearance" defaultOpen={true}>
@@ -520,6 +681,40 @@ export default function RightPanel({
                 <ColorRow label="Background" color={selected.fill || '#ffffff'} onChange={val => update('fill', val)} />
               )}
               <NumberInput label="Border Radius" value={Math.round(selected.radius || 0)} suffix="px" onChange={val => update('radius', val)} />
+              
+              {/* Overflow control */}
+              <div>
+                <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Overflow</p>
+                <div className="grid grid-cols-3 gap-1">
+                  {['visible', 'hidden', 'scroll'].map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => onUpdate(selected.id, { overflow: mode })}
+                      className={`py-1.5 rounded text-[9px] font-semibold capitalize transition-colors border ${
+                        (selected.overflow || 'visible') === mode
+                          ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
+                          : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Cursor control */}
+              <div>
+                <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Cursor</p>
+                <select
+                  value={selected.cursor || 'default'}
+                  onChange={(e) => onUpdate(selected.id, { cursor: e.target.value })}
+                  className="w-full bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg px-3 py-2 text-xs text-[#0F2348] outline-none focus:border-[#2348D7]"
+                >
+                  {['default', 'pointer', 'text', 'grab', 'not-allowed'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
 
               {showBorder ? (
                 <div>
@@ -563,6 +758,24 @@ export default function RightPanel({
                   <NumberInput label="Size"        value={selected.fontSize   || 16} suffix="px" onChange={val => update('fontSize',   val)} />
                   <NumberInput label="Line Height" value={selected.lineHeight || ''} suffix="px" onChange={val => update('lineHeight', val)} />
                 </div>
+
+                {/* Responsive Font Scaling */}
+                <div className="p-2.5 bg-[#F7F9FD] rounded-lg border border-[#EEF2FA]">
+                  <p className="text-[#5E6F8E] text-[9px] font-semibold mb-2">Responsive Scaling</p>
+                  <div className="space-y-1.5">
+                    {[
+                      { bp: 'tablet', label: 'Tablet', scale: 0.9 },
+                      { bp: 'phone', label: 'Phone', scale: 0.8 },
+                    ].map(({ bp, label, scale }) => (
+                      <div key={bp} className="flex items-center justify-between text-[10px]">
+                        <span className="text-[#AAB8D4]">{label} (×{scale})</span>
+                        <span className="text-[#5E6F8E] font-mono">{Math.round((selected.fontSize || 16) * scale)}px</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[#AAB8D4] text-[8px] mt-2">Font auto-scales on smaller screens</p>
+                </div>
+
                 <div>
                   <p className="text-[#AAB8D4] text-[9px] font-medium mb-1.5">Font Family</p>
                   <select

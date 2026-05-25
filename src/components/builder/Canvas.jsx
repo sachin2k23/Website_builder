@@ -133,6 +133,23 @@ export default function Canvas({
     if (selectedId !== null) setIsCanvasPinned(false)
   }, [selectedId])
 
+  // ── Keyboard delete handler ────────────────────────────────────────────────
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const tag = document.activeElement?.tagName
+        // Don't delete if typing in input/textarea/select
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+        if (selectedId) {
+          onDelete(selectedId)
+          onSelect(null)
+        }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [selectedId, onDelete, onSelect])
+
   // ── Screen coords → canvas coords [from v1] ────────────────────────────────
   const screenToCanvas = (clientX, clientY) => {
     const page = canvasPageRef.current

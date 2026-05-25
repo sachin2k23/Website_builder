@@ -97,6 +97,31 @@ export function getResponsiveValue(element, breakpointId, key, fallback) {
 }
 
 /**
+ * Get responsive font size with automatic scaling for smaller breakpoints
+ * Desktop: 100% (base size)
+ * Tablet: 90% of base size
+ * Phone: 80% of base size
+ */
+export function getResponsiveFontSize(element, breakpointId, fallback = 16) {
+  const baseFontSize = element.fontSize ?? fallback
+  const bpOverrides = element.breakpoints ?? {}
+
+  let fontSize = baseFontSize
+  
+  if (breakpointId === 'desktop') {
+    fontSize = baseFontSize
+  } else if (breakpointId === 'tablet') {
+    fontSize = bpOverrides.tablet?.fontSize ?? Math.round(baseFontSize * 0.9)
+  } else if (breakpointId === 'phone') {
+    fontSize = bpOverrides.phone?.fontSize ?? Math.round(baseFontSize * 0.8)
+  } else {
+    fontSize = bpOverrides.custom?.fontSize ?? Math.round(baseFontSize * 0.9)
+  }
+
+  return fontSize
+}
+
+/**
  * Produce an updated element after a layout change at a given breakpoint.
  * Desktop edits go to root keys. Other breakpoints write into element.breakpoints[bp].
  */

@@ -60,6 +60,10 @@ export default function App() {
   })
 
   useEffect(() => {
+    // Initialize theme from localStorage
+    const savedTheme = localStorage.getItem('vc-theme') || 'light'
+    document.documentElement.setAttribute('data-theme', savedTheme)
+
     window.history.replaceState({
       page: 'dashboard',
       builderConfig: { projectId: null, elements: [], name: 'My Project', canvasSettings: null },

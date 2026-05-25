@@ -5,6 +5,7 @@ import {
   Feather,
   GitBranch,
   Globe2,
+  Link,
   Orbit,
   Shapes,
   Smile,
@@ -12,7 +13,7 @@ import {
   Trash2,
   Zap,
 } from 'lucide-react'
-import { getElementLayout, getResponsiveValue, setElementLayout } from '../../utils/responsive'
+import { getElementLayout, getResponsiveValue, setElementLayout, getResponsiveFontSize } from '../../utils/responsive'
 import { clampBoxToCanvas, getContainedElements, getSnapResult, isContainerElement } from '../../utils/editorGeometry'
 import { 
   getResizeDirection, 
@@ -361,7 +362,7 @@ const sharedTextProps = (
 
   style: {
     color: element.textColor || defaultColor,
-    fontSize: `${getResponsiveValue(element, activeBreakpoint, 'fontSize', defaultSize)}px`,
+    fontSize: `${getResponsiveFontSize(element, activeBreakpoint, defaultSize)}px`,
     fontWeight: getResponsiveValue(element, activeBreakpoint, 'fontWeight', defaultWeight),
     fontFamily: element.fontFamily || 'inherit',
     textAlign: getResponsiveValue(element, activeBreakpoint, 'textAlign', element.textAlign || 'left'),
@@ -569,6 +570,25 @@ const sharedTextProps = (
         userSelect:   'none',
         borderRadius: radius,
         zIndex:       isFrameLike ? 0 : (isSelected ? 10 : 1),
+        // Display and layout
+        display: element.display || 'block',
+        flexDirection: element.display === 'flex' ? (element.flexDirection || 'row') : undefined,
+        alignItems: element.display === 'flex' ? (element.alignItems || 'center') : undefined,
+        justifyContent: element.display === 'flex' ? (element.justifyContent || 'flex-start') : undefined,
+        gap: element.gap ? `${element.gap}px` : undefined,
+        gridTemplateColumns: element.display === 'grid' ? `repeat(${element.gridCols || 2}, 1fr)` : undefined,
+        // Spacing
+        padding: [element.paddingTop, element.paddingRight, element.paddingBottom, element.paddingLeft]
+          .some(v => v !== undefined && v !== 0) 
+          ? `${element.paddingTop || 0}px ${element.paddingRight || 0}px ${element.paddingBottom || 0}px ${element.paddingLeft || 0}px`
+          : undefined,
+        margin: [element.marginTop, element.marginRight, element.marginBottom, element.marginLeft]
+          .some(v => v !== undefined && v !== 0)
+          ? `${element.marginTop || 0}px ${element.marginRight || 0}px ${element.marginBottom || 0}px ${element.marginLeft || 0}px`
+          : undefined,
+        // Overflow and cursor
+        overflow: element.overflow || 'visible',
+        cursor: element.cursor || 'move',
       }}
     >
       <span className="ce-hover-label">{element.name || element.type}</span>
@@ -587,6 +607,22 @@ const sharedTextProps = (
         >
           <Trash2 size={10} color="white" />
         </button>
+      )}
+
+      {/* Link badge — show when element has a link */}
+      {(element.linkType && element.linkType !== 'none') && (
+        <div
+          style={{
+            position: 'absolute', top: '-10px', right: isSelected ? '22px' : '-10px',
+            width: '20px', height: '20px', borderRadius: '50%',
+            backgroundColor: '#2348D7', border: '2px solid white',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', zIndex: 25, boxShadow: '0 2px 6px rgba(35,72,215,0.3)',
+          }}
+          title={`Linked: ${element.linkType}`}
+        >
+          <Link size={11} color="white" strokeWidth={2.5} />
+        </div>
       )}
 
       {isSelected && HANDLES.map(handle => (
