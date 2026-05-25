@@ -1,13 +1,17 @@
-import { useState, useRef } from 'react'
+﻿import { useState, useRef } from 'react'
 import {
   ChevronDown, X,
   BringToFront, SendToBack,
   ArrowUp, ArrowDown,
   Upload, ImageIcon,
+  Link, ExternalLink, Hash, FileText, ChevronRight,
 } from 'lucide-react'
 import { HexColorPicker } from 'react-colorful'
 import { BREAKPOINTS, getCanvasWidth } from '../../utils/responsive'
 
+/**
+ * Section component - Clean collapsible panel
+ */
 function Section({ title, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
@@ -16,19 +20,22 @@ function Section({ title, children, defaultOpen = true }) {
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F8FAFF] transition-colors"
       >
-        <span className="text-[#0F2348] text-xs font-semibold">{title}</span>
-        <ChevronDown size={13} className={`text-[#AAB8D4] transition-transform ${open ? '' : '-rotate-90'}`} />
+        <span className="text-[#0F2348] text-xs font-semibold uppercase tracking-wide">{title}</span>
+        <ChevronDown size={13} className={`text-[#AAB8D4] transition-transform duration-200 ${open ? '' : '-rotate-90'}`} />
       </button>
-      {open && <div className="px-4 pb-4">{children}</div>}
+      {open && <div className="px-4 pb-4 space-y-3">{children}</div>}
     </div>
   )
 }
 
+/**
+ * NumberInput component - For layout and numeric properties
+ */
 function NumberInput({ label, value, suffix, onChange }) {
   return (
     <div>
-      {label && <p className="text-[#AAB8D4] text-[10px] mb-1">{label}</p>}
-      <div className="flex items-center bg-[#F3F6FB] border border-[#E2E8F4] rounded-xl overflow-hidden focus-within:border-[#2348D7] transition-colors">
+      {label && <p className="text-[#AAB8D4] text-[9px] font-medium mb-1.5">{label}</p>}
+      <div className="flex items-center bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg overflow-hidden focus-within:border-[#2348D7] transition-colors">
         <input
           type="text"
           inputMode="numeric"
@@ -39,52 +46,65 @@ function NumberInput({ label, value, suffix, onChange }) {
             const num = Number(val)
             if (!isNaN(num)) onChange?.(num)
           }}
-          className="flex-1 px-3 py-2 text-sm text-[#0F2348] bg-transparent outline-none w-0 min-w-0"
+          className="flex-1 px-3 py-2 text-sm text-[#0F2348] bg-transparent outline-none"
         />
-        {suffix && <span className="text-[#AAB8D4] text-xs pr-3 shrink-0">{suffix}</span>}
+        {suffix && <span className="text-[#AAB8D4] text-xs pr-3">{suffix}</span>}
       </div>
     </div>
   )
 }
 
+/**
+ * ColorRow component - For color properties with picker
+ */
 function ColorRow({ label, color, onChange, onRemove }) {
   const [open, setOpen] = useState(false)
   const safeColor = color || '#ffffff'
+  
   return (
     <div className="relative">
-      <div className="flex items-center justify-between py-2">
-        <span className="text-[#5E6F8E] text-xs">{label}</span>
+      <div className="flex items-center justify-between py-1.5">
+        <span className="text-[#5E6F8E] text-xs font-medium">{label}</span>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setOpen(v => !v)}
-            className="flex items-center gap-2 bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg px-2 py-1.5 hover:border-[#2348D7] transition-colors"
+            className="flex items-center gap-2 bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg px-2 py-1.5 hover:border-[#2348D7] transition-colors cursor-pointer"
           >
-            <div className="w-4 h-4 rounded border border-[#D8E1F0] shrink-0" style={{ backgroundColor: safeColor }} />
+            <div className="w-5 h-5 rounded border border-[#D8E1F0] shrink-0" style={{ backgroundColor: safeColor }} />
             <span className="text-xs text-[#0F2348] font-mono">{safeColor.replace('#', '').toUpperCase()}</span>
           </button>
           {onRemove && (
-            <button onClick={onRemove} className="text-[#AAB8D4] hover:text-red-400 transition-colors">
-              <X size={12} />
+            <button 
+              onClick={onRemove} 
+              className="text-[#AAB8D4] hover:text-red-400 transition-colors p-1"
+            >
+              <X size={14} />
             </button>
           )}
         </div>
       </div>
+      
       {open && (
-        <div className="absolute right-0 z-[100] bg-white border border-[#D8E1F0] rounded-2xl shadow-2xl p-3 w-[230px]">
+        <div className="absolute right-0 z-[100] bg-white border border-[#D8E1F0] rounded-xl shadow-xl p-3 w-[240px] mt-1">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[#0F2348] text-xs font-semibold">{label}</span>
-            <button onClick={() => setOpen(false)}><X size={13} className="text-[#AAB8D4]" /></button>
+            <button 
+              onClick={() => setOpen(false)} 
+              className="text-[#AAB8D4] hover:text-[#0F2348] transition-colors"
+            >
+              <X size={14} />
+            </button>
           </div>
           <HexColorPicker color={safeColor} onChange={onChange} style={{ width: '100%' }} />
           <div className="mt-3 flex gap-2">
-            <div className="flex items-center bg-[#F3F6FB] border border-[#E2E8F4] rounded-xl overflow-hidden flex-1 focus-within:border-[#2348D7]">
+            <div className="flex items-center bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg overflow-hidden flex-1 focus-within:border-[#2348D7]">
               <span className="text-[#AAB8D4] text-xs pl-3">#</span>
               <input
                 type="text"
                 value={safeColor.replace('#', '').toUpperCase()}
                 onChange={e => onChange('#' + e.target.value.replace('#', ''))}
                 maxLength={6}
-                className="flex-1 px-2 py-2 text-sm text-[#0F2348] bg-transparent outline-none font-mono"
+                className="flex-1 px-2 py-2 text-xs text-[#0F2348] bg-transparent outline-none font-mono"
               />
             </div>
           </div>
@@ -94,13 +114,14 @@ function ColorRow({ label, color, onChange, onRemove }) {
   )
 }
 
-// ── Image Upload ───────────────────────────────────────────────────────────────
+/**
+ * ImageUploadSection - For image elements
+ */
 function ImageUploadSection({ selected, onUpdate }) {
   const fileRef = useRef(null)
-  const urlRef  = useRef(null)
-  const [dragging, setDragging]   = useState(false)
-  const [tab, setTab]             = useState('upload')
-  const [urlValue, setUrlValue]   = useState(selected.src?.startsWith('http') ? selected.src : '')
+  const [dragging, setDragging] = useState(false)
+  const [tab, setTab] = useState('upload')
+  const [urlValue, setUrlValue] = useState(selected.src?.startsWith('http') ? selected.src : '')
 
   const handleFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return
@@ -110,7 +131,8 @@ function ImageUploadSection({ selected, onUpdate }) {
   }
 
   const handleDrop = (e) => {
-    e.preventDefault(); setDragging(false)
+    e.preventDefault()
+    setDragging(false)
     handleFile(e.dataTransfer.files?.[0])
   }
 
@@ -120,36 +142,35 @@ function ImageUploadSection({ selected, onUpdate }) {
 
   return (
     <Section title="Image" defaultOpen>
-      {/* Tab switcher */}
-      <div className="flex gap-1 mb-3 p-1 bg-[#F3F6FB] rounded-xl">
+      <div className="flex gap-1 p-1 bg-[#F3F6FB] rounded-lg mb-3">
         {['upload', 'url'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 py-1.5 rounded-lg text-[11px] font-medium transition-colors capitalize ${
-              tab === t ? 'bg-white text-[#0F2348] shadow-sm' : 'text-[#8A9ABB] hover:text-[#0F2348]'
-            }`}
-          >{t === 'url' ? 'URL' : 'Upload'}</button>
+            className={`flex-1 py-1.5 rounded text-[10px] font-medium transition-colors ${tab === t ? 'bg-white text-[#0F2348] shadow-sm' : 'text-[#8A9ABB] hover:text-[#0F2348]'}`}
+          >
+            {t === 'url' ? 'URL' : 'Upload'}
+          </button>
         ))}
       </div>
 
       {selected.src ? (
         <div className="flex flex-col gap-2">
-          <div className="w-full rounded-xl overflow-hidden border border-[#E2E8F4] bg-[#F7F9FD]" style={{ aspectRatio: '16/9' }}>
+          <div className="w-full rounded-lg overflow-hidden border border-[#E2E8F4] bg-[#F7F9FD]" style={{ aspectRatio: '16/9' }}>
             <img src={selected.src} alt="preview" className="w-full h-full object-cover" />
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => { onUpdate(selected.id, { src: null }); setUrlValue('') }}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#E2E8F4] text-[#5E6F8E] text-xs hover:border-[#2348D7] hover:text-[#2348D7] hover:bg-[#EEF3FF] transition-all"
+              className="flex-1 py-2 rounded-lg border border-[#E2E8F4] text-[#5E6F8E] text-xs hover:border-[#2348D7] hover:text-[#2348D7] hover:bg-[#EEF3FF] transition-all font-medium"
             >
-              <Upload size={11} /> Replace
+              Replace
             </button>
             <button
               onClick={() => { onUpdate(selected.id, { src: null }); setUrlValue('') }}
-              className="px-3 py-2 rounded-xl border border-[#FFE4E4] text-red-400 text-xs hover:bg-red-50 transition-all"
+              className="px-3 py-2 rounded-lg border border-[#FFE4E4] text-red-400 text-xs hover:bg-red-50 transition-all"
             >
-              <X size={11} />
+              <X size={14} />
             </button>
           </div>
         </div>
@@ -159,88 +180,272 @@ function ImageUploadSection({ selected, onUpdate }) {
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
           onClick={() => fileRef.current?.click()}
-          className="w-full flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer transition-all py-7"
+          className="w-full flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed cursor-pointer transition-all py-6"
           style={{
             borderColor: dragging ? '#2348D7' : '#D8E1F0',
             backgroundColor: dragging ? '#EEF3FF' : '#F7F9FD',
           }}
         >
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: dragging ? '#DCEAFF' : '#EEF2FA' }}>
-            <ImageIcon size={18} className={dragging ? 'text-[#2348D7]' : 'text-[#AAB8D4]'} />
-          </div>
+          <ImageIcon size={20} className={dragging ? 'text-[#2348D7]' : 'text-[#AAB8D4]'} />
           <div className="text-center">
             <p className="text-[#5E6F8E] text-xs font-medium">Drop image here</p>
-            <p className="text-[#AAB8D4] text-[10px] mt-0.5">or click to browse</p>
+            <p className="text-[#AAB8D4] text-[10px] mt-1">or click to browse</p>
           </div>
-          <p className="text-[#C5D0E4] text-[9px]">PNG · JPG · GIF · WebP · SVG</p>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => handleFile(e.target.files?.[0])} />
         </div>
       ) : (
         <div className="flex flex-col gap-2">
           <input
-            ref={urlRef}
             type="url"
             placeholder="https://example.com/image.jpg"
             value={urlValue}
             onChange={e => setUrlValue(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && applyUrl()}
-            className="w-full px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded-xl outline-none focus:border-[#2348D7] placeholder-[#C5D0E4] transition-colors"
+            className="w-full px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg outline-none focus:border-[#2348D7] placeholder-[#C5D0E4] transition-colors"
           />
           <button
             onClick={applyUrl}
-            className="w-full py-2 bg-[#2348D7] text-white text-xs font-semibold rounded-xl hover:bg-[#1B3FC8] transition-colors"
+            className="w-full py-2 bg-[#2348D7] text-white text-xs font-semibold rounded-lg hover:bg-[#1B3FC8] transition-colors"
           >
             Apply URL
           </button>
         </div>
       )}
 
-      {/* Object fit */}
-      <div className="flex items-center justify-between mt-3">
-        <span className="text-[#5E6F8E] text-xs">Fit</span>
-        <div className="flex gap-1">
-          {['cover', 'contain', 'fill'].map(fit => (
-            <button
-              key={fit}
-              onClick={() => onUpdate(selected.id, { objectFit: fit })}
-              className={`px-2 py-1 rounded-lg text-[10px] border transition-colors capitalize ${
-                (selected.objectFit || 'cover') === fit
-                  ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7] font-semibold'
-                  : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'
-              }`}
-            >{fit}</button>
-          ))}
+      <div className="pt-2 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[#5E6F8E] text-xs font-medium">Fit</span>
+          <div className="flex gap-1">
+            {['cover', 'contain', 'fill'].map(fit => (
+              <button
+                key={fit}
+                onClick={() => onUpdate(selected.id, { objectFit: fit })}
+                className={`px-2 py-1 rounded text-[10px] border transition-colors capitalize font-medium ${(selected.objectFit || 'cover') === fit ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'}`}
+              >
+                {fit}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* Alt text */}
-      <div className="mt-3">
-        <p className="text-[#AAB8D4] text-[10px] mb-1">Alt text</p>
-        <input
-          type="text"
-          placeholder="Describe the image…"
-          value={selected.alt || ''}
-          onChange={e => onUpdate(selected.id, { alt: e.target.value })}
-          className="w-full px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded-xl outline-none focus:border-[#2348D7] transition-colors placeholder-[#C5D0E4]"
-        />
+        <div>
+          <p className="text-[#AAB8D4] text-[9px] font-medium mb-1.5">Alt text</p>
+          <input
+            type="text"
+            placeholder="Describe the image…"
+            value={selected.alt || ''}
+            onChange={e => onUpdate(selected.id, { alt: e.target.value })}
+            className="w-full px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg outline-none focus:border-[#2348D7] transition-colors placeholder-[#C5D0E4]"
+          />
+        </div>
       </div>
     </Section>
   )
 }
 
-// ── Main ───────────────────────────────────────────────────────────────────────
+// ─── LINK SECTION ────────────────────────────────────────────────────────────
+
+const LINK_TYPES = [
+  { id: 'none',     label: 'None',     icon: X },
+  { id: 'page',     label: 'Page',     icon: FileText },
+  { id: 'url',      label: 'URL',      icon: ExternalLink },
+  { id: 'anchor',   label: 'Anchor',   icon: Hash },
+]
+
+/**
+ * LinkSection - Full page/URL/anchor linking panel
+ * Props:
+ *   selected   – the currently selected element
+ *   onUpdate   – (id, patch) => void
+ *   pages      – array of { id, name } from parent (your page list)
+ */
+function LinkSection({ selected, onUpdate, pages = [] }) {
+  const linkType = selected.linkType || 'none'
+  const update   = (patch) => onUpdate(selected.id, patch)
+
+  // Derive a preview of the resolved href
+  const resolvedHref = (() => {
+    if (linkType === 'url')    return selected.linkHref || ''
+    if (linkType === 'page')   return selected.linkPage  ? `/${selected.linkPage}`  : ''
+    if (linkType === 'anchor') return selected.linkAnchor ? `#${selected.linkAnchor}` : ''
+    return ''
+  })()
+
+  return (
+    <Section title="Link" defaultOpen={true}>
+      {/* ── Type pills ── */}
+      <div>
+        <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Link Type</p>
+        <div className="grid grid-cols-4 gap-1">
+          {LINK_TYPES.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => update({ linkType: id, link: id === 'none' ? '' : selected.link })}
+              className={`flex flex-col items-center gap-1 py-2 rounded-lg border text-[9px] font-semibold transition-all ${
+                linkType === id
+                  ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
+                  : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7] hover:text-[#2348D7] hover:bg-[#F8FAFF]'
+              }`}
+            >
+              <Icon size={12} />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── None state ── */}
+      {linkType === 'none' && (
+        <div className="flex items-center gap-2 py-2 px-3 bg-[#F7F9FD] rounded-lg border border-[#EEF2FA]">
+          <Link size={12} className="text-[#C5D0E4]" />
+          <span className="text-[#C5D0E4] text-[10px]">No link assigned</span>
+        </div>
+      )}
+
+      {/* ── Page link ── */}
+      {linkType === 'page' && (
+        <div className="space-y-2">
+          <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider">Target Page</p>
+          {pages.length === 0 ? (
+            <div className="flex items-center gap-2 py-2.5 px-3 bg-[#FFF8F0] rounded-lg border border-[#FFE4B5]">
+              <span className="text-[#C8962C] text-[10px] font-medium">No pages found — add pages first</span>
+            </div>
+          ) : (
+            <div className="space-y-1 max-h-[160px] overflow-y-auto pr-0.5">
+              {pages.map(page => (
+                <button
+                  key={page.id}
+                  onClick={() => update({ linkPage: page.id, link: `/${page.id}` })}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
+                    selected.linkPage === page.id
+                      ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
+                      : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7] hover:bg-[#F8FAFF]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText size={11} />
+                    <span>{page.name}</span>
+                  </div>
+                  {selected.linkPage === page.id && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#2348D7]" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Anchor on page (optional) */}
+          <div>
+            <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-1.5">
+              Scroll to section <span className="text-[#C5D0E4] font-normal normal-case">(optional)</span>
+            </p>
+            <div className="flex items-center bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg overflow-hidden focus-within:border-[#2348D7] transition-colors">
+              <span className="text-[#AAB8D4] text-xs pl-3">#</span>
+              <input
+                type="text"
+                placeholder="section-id"
+                value={selected.linkPageAnchor || ''}
+                onChange={e => update({ linkPageAnchor: e.target.value.replace(/\s/g, '-').toLowerCase() })}
+                className="flex-1 px-2 py-2 text-xs text-[#0F2348] bg-transparent outline-none placeholder-[#C5D0E4]"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── External URL ── */}
+      {linkType === 'url' && (
+        <div className="space-y-2">
+          <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider">URL</p>
+          <div className="flex items-center bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg overflow-hidden focus-within:border-[#2348D7] transition-colors">
+            <ExternalLink size={11} className="text-[#AAB8D4] ml-3 shrink-0" />
+            <input
+              type="url"
+              placeholder="https://example.com"
+              value={selected.linkHref || ''}
+              onChange={e => update({ linkHref: e.target.value, link: e.target.value })}
+              className="flex-1 px-2 py-2 text-xs text-[#0F2348] bg-transparent outline-none placeholder-[#C5D0E4]"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Anchor / scroll target ── */}
+      {linkType === 'anchor' && (
+        <div className="space-y-2">
+          <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider">Section ID</p>
+          <div className="flex items-center bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg overflow-hidden focus-within:border-[#2348D7] transition-colors">
+            <span className="text-[#AAB8D4] text-xs pl-3">#</span>
+            <input
+              type="text"
+              placeholder="section-id"
+              value={selected.linkAnchor || ''}
+              onChange={e => {
+                const val = e.target.value.replace(/\s/g, '-').toLowerCase()
+                update({ linkAnchor: val, link: `#${val}` })
+              }}
+              className="flex-1 px-2 py-2 text-xs text-[#0F2348] bg-transparent outline-none placeholder-[#C5D0E4]"
+            />
+          </div>
+          <p className="text-[#AAB8D4] text-[9px]">Smooth-scrolls to any element with this ID on the same page.</p>
+        </div>
+      )}
+
+      {/* ── Open in / Target ── */}
+      {linkType !== 'none' && (
+        <div>
+          <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Open in</p>
+          <div className="flex gap-1">
+            {[
+              { val: '_self',  label: 'Same tab' },
+              { val: '_blank', label: 'New tab' },
+            ].map(opt => (
+              <button
+                key={opt.val}
+                onClick={() => update({ linkTarget: opt.val })}
+                className={`flex-1 py-1.5 rounded-lg border text-[10px] font-medium transition-all ${
+                  (selected.linkTarget || '_self') === opt.val
+                    ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
+                    : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Resolved href preview ── */}
+      {resolvedHref && (
+        <div className="flex items-center gap-2 py-2 px-3 bg-[#F3F6FB] rounded-lg border border-[#E2E8F4]">
+          <ChevronRight size={10} className="text-[#2348D7] shrink-0" />
+          <span className="text-[#5E6F8E] text-[10px] font-mono truncate">{resolvedHref}</span>
+        </div>
+      )}
+    </Section>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const TEXT_TYPES = ['heading', 'paragraph', 'text', 'link', 'button', 'label']
 
+/**
+ * RightPanel - Main properties panel
+ */
 export default function RightPanel({
   selected,
   onUpdate,
   canvasSettings,
+  elements = [],
   onCanvasUpdate,
   onDelete,
   onDuplicate,
   onReorder,
   activeBreakpoint = 'desktop',
   customWidth = 800,
+  pages = [],   // <-- pass your page list here: [{ id: 'home', name: 'Home' }, ...]
 }) {
   const [showBorder, setShowBorder] = useState(!!selected?.borderColor)
   const [showShadow, setShowShadow] = useState(!!selected?.shadowColor)
@@ -253,201 +458,175 @@ export default function RightPanel({
   const canvasWidth = getCanvasWidth(activeBreakpoint, canvasSettings, customWidth)
 
   return (
-    <div className="w-[260px] h-full bg-white border-l border-[#D8E1F0] flex flex-col shrink-0 overflow-y-auto">
+    <div className="w-[280px] h-full bg-white border-l border-[#D8E1F0] flex flex-col shrink-0 overflow-y-auto">
       {selected ? (
         <>
           {/* ── Header ── */}
-          <div className="px-4 py-3 border-b border-[#EEF2FA] shrink-0 flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-[#EEF2FA] shrink-0 flex items-center justify-between bg-gradient-to-b from-[#F8FAFF] to-white">
             <div>
-              <p className="text-[#8A9ABB] text-[10px] uppercase tracking-widest">Properties</p>
-              <p className="text-[#0F2348] text-sm font-semibold mt-0.5 capitalize">{selected.type}</p>
-              <p className="text-[#2348D7] text-[10px] font-semibold mt-1">{breakpoint?.label || 'Desktop'} breakpoint</p>
+              <p className="text-[#AAB8D4] text-[9px] font-semibold uppercase tracking-widest">ELEMENT</p>
+              <p className="text-[#0F2348] text-sm font-bold mt-1 capitalize">{selected.type}</p>
+              <p className="text-[#2348D7] text-[9px] font-semibold mt-1">{breakpoint?.label}</p>
             </div>
             <div className="flex gap-1">
               <button
                 onClick={() => onDuplicate(selected.id)}
                 title="Duplicate"
-                className="w-7 h-7 rounded-lg flex items-center justify-center border border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7] hover:text-[#2348D7] hover:bg-[#EEF3FF] transition-all text-xs"
-              >⧉</button>
+                className="w-8 h-8 rounded-lg flex items-center justify-center border border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7] hover:text-[#2348D7] hover:bg-[#EEF3FF] transition-all text-sm font-semibold"
+              >
+                ⧉
+              </button>
               <button
                 onClick={() => onDelete(selected.id)}
                 title="Delete"
-                className="w-7 h-7 rounded-lg flex items-center justify-center border border-[#E2E8F4] text-[#8A9ABB] hover:border-red-300 hover:text-red-400 hover:bg-red-50 transition-all"
-              ><X size={11} /></button>
+                className="w-8 h-8 rounded-lg flex items-center justify-center border border-[#E2E8F4] text-[#8A9ABB] hover:border-red-300 hover:text-red-400 hover:bg-red-50 transition-all"
+              >
+                <X size={14} />
+              </button>
             </div>
           </div>
 
           {/* Image upload */}
           {isImage && <ImageUploadSection selected={selected} onUpdate={onUpdate} />}
 
-          {/* ── Position ── */}
-          <Section title="Position">
-            <div className="grid grid-cols-2 gap-2">
-              <NumberInput label="X" value={Math.round(selected.x || 0)} suffix="px" onChange={val => update('x', val)} />
-              <NumberInput label="Y" value={Math.round(selected.y || 0)} suffix="px" onChange={val => update('y', val)} />
-            </div>
-          </Section>
-
-          {/* ── Size ── */}
-          <Section title="Size">
-            <div className="grid grid-cols-2 gap-2">
-              <NumberInput label="Width"  value={Math.round(selected.width  || 200)} suffix="px" onChange={val => update('width',  val)} />
-              <NumberInput label="Height" value={Math.round(selected.height || 100)} suffix="px" onChange={val => update('height', val)} />
-            </div>
-          </Section>
-
-          {/* ── Arrange ── */}
-          <Section title="Arrange">
-            <div className="flex items-center gap-1">
-              {[
-                { fn: 'back-all', icon: SendToBack,   label: 'Back'     },
-                { fn: 'back',     icon: ArrowDown,    label: 'Backward' },
-                { fn: 'forward',  icon: ArrowUp,      label: 'Forward'  },
-                { fn: 'front',    icon: BringToFront, label: 'Front'    },
-              ].map(({ fn, icon: Icon, label }) => (
-                <button
-                  key={fn}
-                  onClick={() => onReorder(selected.id, fn)}
-                  className="flex-1 flex flex-col items-center gap-1 py-2 rounded-lg border border-[#E2E8F4] hover:border-[#2348D7] hover:bg-[#EEF3FF] text-[#5E6F8E] hover:text-[#2348D7] transition-all"
-                >
-                  <Icon size={13} />
-                  <span className="text-[9px]">{label}</span>
-                </button>
-              ))}
-            </div>
-          </Section>
-
-          {/* ── Typography ── */}
-          <Section title="Typography">
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <NumberInput
-                label="Size"
-                value={selected.fontSize || (selected.type === 'heading' ? 32 : 16)}
-                suffix="px"
-                onChange={val => update('fontSize', val)}
-              />
-              <NumberInput
-                label="Line H"
-                value={selected.lineHeight || ''}
-                suffix="x"
-                onChange={val => update('lineHeight', val)}
-              />
-            </div>
-
-            {isText && (
-              <>
-                <p className="text-[#AAB8D4] text-[9px] mb-1.5 font-medium uppercase tracking-wide">Font</p>
-                <select
-                  value={selected.fontFamily || 'Inter'}
-                  onChange={e => update('fontFamily', e.target.value)}
-                  className="w-full mb-3 bg-[#F3F6FB] border border-[#E2E8F4] rounded-xl px-3 py-2 text-xs text-[#0F2348] outline-none focus:border-[#2348D7]"
-                >
-                  {['Inter', 'Poppins', 'Playfair Display', 'Roboto', 'Lato', 'Montserrat', 'Georgia', 'Merriweather'].map(f => (
-                    <option key={f}>{f}</option>
-                  ))}
-                </select>
-
-                <p className="text-[#AAB8D4] text-[9px] mb-1.5 font-medium uppercase tracking-wide">Weight</p>
-                <div className="grid grid-cols-3 gap-1 mb-3">
-                  {[{ label: 'Regular', val: 400 }, { label: 'Medium', val: 500 }, { label: 'Bold', val: 700 }].map(w => (
-                    <button
-                      key={w.val}
-                      onClick={() => update('fontWeight', w.val)}
-                      className={`py-1.5 rounded-lg text-[10px] border transition-colors ${
-                        (selected.fontWeight || (selected.type === 'heading' ? 700 : 400)) === w.val
-                          ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7] font-semibold'
-                          : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'
-                      }`}
-                      style={{ fontWeight: w.val }}
-                    >{w.label}</button>
-                  ))}
+          {/* LAYOUT */}
+          <Section title="Layout" defaultOpen={true}>
+            <div className="space-y-3">
+              <div>
+                <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Position</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberInput label="X" value={Math.round(selected.x || 0)} suffix="px" onChange={val => update('x', val)} />
+                  <NumberInput label="Y" value={Math.round(selected.y || 0)} suffix="px" onChange={val => update('y', val)} />
                 </div>
-
-                <p className="text-[#AAB8D4] text-[9px] mb-1.5 font-medium uppercase tracking-wide">Format</p>
-                <div className="flex items-center gap-1 mb-3">
-                  {[
-                    { ch: 'B', title: 'Bold',      active: (selected.fontWeight || 400) >= 700, click: () => update('fontWeight', (selected.fontWeight || 400) >= 700 ? 400 : 700), style: { fontWeight: 700 } },
-                    { ch: 'I', title: 'Italic',    active: !!selected.italic,    click: () => update('italic',    !selected.italic),    style: { fontStyle: 'italic' } },
-                    { ch: 'U', title: 'Underline', active: !!selected.underline, click: () => update('underline', !selected.underline), style: { textDecoration: 'underline' } },
-                  ].map(b => (
-                    <button
-                      key={b.ch}
-                      onClick={b.click}
-                      title={b.title}
-                      style={b.style}
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center border text-xs transition-colors ${
-                        b.active ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'
-                      }`}
-                    >{b.ch}</button>
-                  ))}
-                  <div className="w-px h-5 bg-[#E2E8F4] mx-0.5" />
-                  {[{ a: 'left', i: '◀' }, { a: 'center', i: '●' }, { a: 'right', i: '▶' }].map(({ a, i }) => (
-                    <button
-                      key={a}
-                      onClick={() => update('textAlign', a)}
-                      title={`Align ${a}`}
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center border text-[9px] transition-colors ${
-                        (selected.textAlign || 'left') === a ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'
-                      }`}
-                    >{i}</button>
-                  ))}
+              </div>
+              <div>
+                <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Size</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberInput label="W" value={Math.round(selected.width || 200)} suffix="px" onChange={val => update('width', val)} />
+                  <NumberInput label="H" value={Math.round(selected.height || 100)} suffix="px" onChange={val => update('height', val)} />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <NumberInput label="Rotation" value={Math.round(selected.rotation || 0)} suffix="°" onChange={val => update('rotation', val)} />
+                <NumberInput label="Z-Index"   value={Math.round(selected.zIndex   || 0)}         onChange={val => update('zIndex',    val)} />
+              </div>
+            </div>
+          </Section>
 
+          {/* APPEARANCE */}
+          <Section title="Appearance" defaultOpen={true}>
+            <div className="space-y-3">
+              {!isImage && (
+                <ColorRow label="Background" color={selected.fill || '#ffffff'} onChange={val => update('fill', val)} />
+              )}
+              <NumberInput label="Border Radius" value={Math.round(selected.radius || 0)} suffix="px" onChange={val => update('radius', val)} />
+
+              {showBorder ? (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider">Border</span>
+                    <button onClick={() => { setShowBorder(false); update('borderColor', null) }} className="text-[#AAB8D4] hover:text-red-400 transition-colors p-1"><X size={12} /></button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[#5E6F8E] text-[9px] font-medium mb-1">Width</p>
+                      <NumberInput value={selected.borderWidth || 1} suffix="px" onChange={val => update('borderWidth', val)} />
+                    </div>
+                    <ColorRow label="Color" color={selected.borderColor || '#e2e8f4'} onChange={val => update('borderColor', val)} />
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => { setShowBorder(true); update('borderColor', '#e2e8f4'); update('borderWidth', 1) }} className="w-full py-2 rounded-lg border border-dashed border-[#D8E1F0] text-[#AAB8D4] hover:text-[#2348D7] hover:border-[#2348D7] text-xs font-medium transition-colors">+ Add Border</button>
+              )}
+
+              {showShadow ? (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider">Shadow</span>
+                    <button onClick={() => { setShowShadow(false); update('shadowColor', null) }} className="text-[#AAB8D4] hover:text-red-400 transition-colors p-1"><X size={12} /></button>
+                  </div>
+                  <ColorRow label="Color" color={selected.shadowColor || '#00000033'} onChange={val => update('shadowColor', val)} />
+                </div>
+              ) : (
+                <button onClick={() => { setShowShadow(true); update('shadowColor', '#00000033') }} className="w-full py-2 rounded-lg border border-dashed border-[#D8E1F0] text-[#AAB8D4] hover:text-[#2348D7] hover:border-[#2348D7] text-xs font-medium transition-colors">+ Add Shadow</button>
+              )}
+
+              <NumberInput label="Opacity" value={selected.opacity ?? 100} suffix="%" onChange={val => update('opacity', Math.min(100, Math.max(0, val)))} />
+            </div>
+          </Section>
+
+          {/* TYPOGRAPHY */}
+          {isText && (
+            <Section title="Typography" defaultOpen={true}>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberInput label="Size"        value={selected.fontSize   || 16} suffix="px" onChange={val => update('fontSize',   val)} />
+                  <NumberInput label="Line Height" value={selected.lineHeight || ''} suffix="px" onChange={val => update('lineHeight', val)} />
+                </div>
+                <div>
+                  <p className="text-[#AAB8D4] text-[9px] font-medium mb-1.5">Font Family</p>
+                  <select
+                    value={selected.fontFamily || 'Inter'}
+                    onChange={e => update('fontFamily', e.target.value)}
+                    className="w-full bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg px-3 py-2 text-xs text-[#0F2348] outline-none focus:border-[#2348D7] transition-colors"
+                  >
+                    {['Inter', 'Poppins', 'Playfair Display', 'Roboto', 'Lato', 'Montserrat', 'Georgia', 'Merriweather'].map(f => (
+                      <option key={f}>{f}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <p className="text-[#AAB8D4] text-[9px] font-medium mb-1.5">Weight</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[{ label: '400', val: 400 }, { label: '500', val: 500 }, { label: '700', val: 700 }].map(w => (
+                      <button key={w.val} onClick={() => update('fontWeight', w.val)} className={`py-2 rounded-lg text-[11px] border font-semibold transition-colors ${(selected.fontWeight || 400) === w.val ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'}`}>{w.label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[#AAB8D4] text-[9px] font-medium mb-1.5">Format</p>
+                  <div className="flex items-center gap-1 mb-2">
+                    {[
+                      { ch: 'B', title: 'Bold',      active: (selected.fontWeight || 400) >= 700, click: () => update('fontWeight', (selected.fontWeight || 400) >= 700 ? 400 : 700) },
+                      { ch: 'I', title: 'Italic',    active: !!selected.italic,    click: () => update('italic',    !selected.italic)    },
+                      { ch: 'U', title: 'Underline', active: !!selected.underline, click: () => update('underline', !selected.underline) },
+                    ].map(b => (
+                      <button key={b.ch} onClick={b.click} title={b.title} className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs font-bold transition-colors ${b.active ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'}`}>{b.ch}</button>
+                    ))}
+                    <div className="w-px h-6 bg-[#E2E8F4] mx-1" />
+                    {[{ a: 'left', i: '◀' }, { a: 'center', i: '●' }, { a: 'right', i: '▶' }].map(({ a, i }) => (
+                      <button key={a} onClick={() => update('textAlign', a)} title={`Align ${a}`} className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs transition-colors ${(selected.textAlign || 'left') === a ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'}`}>{i}</button>
+                    ))}
+                  </div>
+                </div>
                 <ColorRow label="Color" color={selected.textColor || '#111827'} onChange={val => update('textColor', val)} />
-              </>
-            )}
-          </Section>
-
-          {/* ── Styles ── */}
-          <Section title="Styles">
-            {!isImage && (
-              <ColorRow label="Fill" color={selected.fill || '#ffffff'} onChange={val => update('fill', val)} />
-            )}
-
-            {showBorder ? (
-              <ColorRow
-                label="Border"
-                color={selected.borderColor || '#e2e8f4'}
-                onChange={val => update('borderColor', val)}
-                onRemove={() => { setShowBorder(false); update('borderColor', null) }}
-              />
-            ) : (
-              <div className="flex items-center justify-between py-2">
-                <span className="text-[#5E6F8E] text-xs">Border</span>
-                <button
-                  onClick={() => { setShowBorder(true); update('borderColor', '#e2e8f4') }}
-                  className="text-[#AAB8D4] hover:text-[#2348D7] text-xs border border-dashed border-[#D8E1F0] px-3 py-1 rounded-lg transition-colors"
-                >+ Add</button>
               </div>
-            )}
+            </Section>
+          )}
 
-            {showShadow ? (
-              <ColorRow
-                label="Shadow"
-                color={selected.shadowColor || '#00000033'}
-                onChange={val => update('shadowColor', val)}
-                onRemove={() => { setShowShadow(false); update('shadowColor', null) }}
-              />
-            ) : (
-              <div className="flex items-center justify-between py-2">
-                <span className="text-[#5E6F8E] text-xs">Shadow</span>
-                <button
-                  onClick={() => { setShowShadow(true); update('shadowColor', '#00000033') }}
-                  className="text-[#AAB8D4] hover:text-[#2348D7] text-xs border border-dashed border-[#D8E1F0] px-3 py-1 rounded-lg transition-colors"
-                >+ Add</button>
-              </div>
-            )}
+          {/* ══════════════════════════════════════════════════════════════════ */}
+          {/* LINK SECTION — replaces old placeholder in Actions              */}
+          {/* ══════════════════════════════════════════════════════════════════ */}
+          <LinkSection selected={selected} onUpdate={onUpdate} pages={pages} />
 
-            <div className="flex items-center justify-between py-2 gap-3">
-              <span className="text-[#5E6F8E] text-xs shrink-0">Radius</span>
-              <div className="w-28">
-                <NumberInput value={selected.radius || 0} suffix="px" onChange={val => update('radius', val)} />
-              </div>
-            </div>
-            <div className="flex items-center justify-between py-2 gap-3">
-              <span className="text-[#5E6F8E] text-xs shrink-0">Opacity</span>
-              <div className="w-28">
-                <NumberInput value={selected.opacity ?? 100} suffix="%" onChange={val => update('opacity', Math.min(100, Math.max(0, val)))} />
+          {/* ACTIONS */}
+          <Section title="Actions" defaultOpen={false}>
+            <div className="space-y-2">
+              <div>
+                <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Arrange</p>
+                <div className="grid grid-cols-4 gap-1">
+                  {[
+                    { fn: 'back-all', icon: SendToBack,  label: 'Back All' },
+                    { fn: 'back',     icon: ArrowDown,   label: 'Back'     },
+                    { fn: 'forward',  icon: ArrowUp,     label: 'Forward'  },
+                    { fn: 'front',    icon: BringToFront, label: 'Front'   },
+                  ].map(({ fn, icon: Icon, label }) => (
+                    <button key={fn} onClick={() => onReorder(selected.id, fn)} title={label} className="flex flex-col items-center gap-1 py-2 rounded-lg border border-[#E2E8F4] hover:border-[#2348D7] hover:bg-[#EEF3FF] text-[#5E6F8E] hover:text-[#2348D7] transition-all">
+                      <Icon size={13} />
+                      <span className="text-[8px] font-medium">{label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </Section>
@@ -455,41 +634,34 @@ export default function RightPanel({
       ) : (
         <>
           {/* ── Canvas properties ── */}
-          <div className="px-4 py-3 border-b border-[#EEF2FA] shrink-0">
-            <p className="text-[#8A9ABB] text-[10px] uppercase tracking-widest">Properties</p>
-            <p className="text-[#0F2348] text-sm font-semibold mt-0.5">Canvas</p>
-            <p className="text-[#2348D7] text-[10px] font-semibold mt-1">{breakpoint?.label || 'Desktop'} breakpoint</p>
+          <div className="px-4 py-3 border-b border-[#EEF2FA] shrink-0 bg-gradient-to-b from-[#F8FAFF] to-white">
+            <p className="text-[#AAB8D4] text-[9px] font-semibold uppercase tracking-widest">CANVAS</p>
+            <p className="text-[#0F2348] text-sm font-bold mt-1">Properties</p>
+            <p className="text-[#2348D7] text-[9px] font-semibold mt-1">{breakpoint?.label}</p>
           </div>
 
-          <Section title="Breakpoint">
-            <div className="flex flex-col gap-3">
+          <Section title="Layout" defaultOpen={true}>
+            <div className="space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <NumberInput label="X" value={canvasSettings.x || 0} suffix="px" onChange={val => onCanvasUpdate({ x: val })} />
                 <NumberInput label="Y" value={canvasSettings.y || 0} suffix="px" onChange={val => onCanvasUpdate({ y: val })} />
               </div>
-              <div>
-                <p className="text-[#5E6F8E] text-xs mb-2">Width</p>
-                <NumberInput
-                  value={canvasWidth}
-                  onChange={val => activeBreakpoint === 'desktop' && val > 0 && onCanvasUpdate({ width: val })}
-                />
-              </div>
-              <div>
-                <p className="text-[#5E6F8E] text-xs mb-2">Height</p>
-                <NumberInput value={canvasSettings.height} onChange={val => val > 0 && onCanvasUpdate({ height: val })} />
+              <div className="grid grid-cols-2 gap-2">
+                <NumberInput label="Width"  value={canvasWidth}           onChange={val => activeBreakpoint === 'desktop' && val > 0 && onCanvasUpdate({ width: val })} />
+                <NumberInput label="Height" value={canvasSettings.height} onChange={val => val > 0 && onCanvasUpdate({ height: val })} />
               </div>
             </div>
           </Section>
 
-          <Section title="Typography">
+          <Section title="Appearance" defaultOpen={true}>
+            <ColorRow label="Background" color={canvasSettings.fill} onChange={val => onCanvasUpdate({ fill: val })} />
+          </Section>
+
+          <Section title="Typography" defaultOpen={false}>
             <div className="grid grid-cols-2 gap-2">
-              <NumberInput label="Base" value={canvasSettings.fontSize || 16} suffix="px" onChange={val => onCanvasUpdate({ fontSize: val })} />
-              <NumberInput label="Line H" value={canvasSettings.lineHeight || ''} suffix="x" onChange={val => onCanvasUpdate({ lineHeight: val })} />
+              <NumberInput label="Base Size"   value={canvasSettings.fontSize   || 16} suffix="px" onChange={val => onCanvasUpdate({ fontSize:   val })} />
+              <NumberInput label="Line Height" value={canvasSettings.lineHeight || ''}              onChange={val => onCanvasUpdate({ lineHeight: val })} />
             </div>
-          </Section>
-
-          <Section title="Styles">
-            <ColorRow label="Fill" color={canvasSettings.fill} onChange={val => onCanvasUpdate({ fill: val })} />
           </Section>
         </>
       )}

@@ -92,6 +92,7 @@ export default function Builder({
   // ── History ────────────────────────────────────────────────────────────────
   const historyRef   = useRef([{ home: [] }])
   const historyIndex = useRef(0)
+  const [historyTick, setHistoryTick] = useState(0)
 
   // Push snapshot helper — returns the new treeByPage
   const pushSnapshot = useCallback((nextPageTree, prevTreeByPage) => {
@@ -100,6 +101,7 @@ export default function Builder({
     trimmed.push(snapshot)
     historyRef.current   = trimmed
     historyIndex.current = trimmed.length - 1
+    setHistoryTick(tick => tick + 1)
     return snapshot
   }, [activePageId])
 
@@ -122,6 +124,7 @@ export default function Builder({
     setSelectedId(null)
     historyRef.current   = [{ [activePageId]: mapped }]
     historyIndex.current = 0
+    setHistoryTick(tick => tick + 1)
   }, [initialElements, initialCanvasSettings]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -276,15 +279,15 @@ export default function Builder({
   }, [activePageId, pushSnapshot])
 
   // ── Update ─────────────────────────────────────────────────────────────────
-  const handleUpdate = useCallback((id, changesOrFullElement) => {
+  const handleUpdate = useCallback((id, changesOrFullElement, options = {}) => {
     const isFullElement =
       changesOrFullElement &&
       typeof changesOrFullElement === 'object' &&
       changesOrFullElement.id === id
 
-    setTree(prev => {
+    const applyUpdate = (currentTree) => {
       if (isFullElement) {
-        return updateNode(prev, id, changesOrFullElement)
+        return updateNode(currentTree, id, changesOrFullElement)
       }
 
       const layoutKeys    = new Set(['x', 'y', 'width', 'height'])
@@ -296,7 +299,7 @@ export default function Builder({
         else                   styleChanges[k]  = v
       })
 
-      return prev.map(el => {
+      return currentTree.map(el => {
         if (el.id !== id) return el
         let updated = { ...el, ...styleChanges }
         if (Object.keys(layoutChanges).length) {
@@ -304,8 +307,18 @@ export default function Builder({
         }
         return updated
       })
-    })
-  }, [setTree, activeBreakpoint])
+    }
+
+    if (options.commit) {
+      setTreeByPage(prev => {
+        const current = prev[activePageId] || []
+        return pushSnapshot(applyUpdate(current), prev)
+      })
+      return
+    }
+
+    setTree(prev => applyUpdate(prev))
+  }, [setTree, setTreeByPage, activeBreakpoint, activePageId, pushSnapshot])
 
   const handleCanvasUpdate = useCallback((changes) => {
     setCanvasSettings(prev => ({ ...prev, ...changes }))
@@ -317,6 +330,7 @@ export default function Builder({
     historyIndex.current--
     setTreeByPage(historyRef.current[historyIndex.current])
     setSelectedId(null)
+    setHistoryTick(tick => tick + 1)
   }, [])
 
   const redo = useCallback(() => {
@@ -324,6 +338,7 @@ export default function Builder({
     historyIndex.current++
     setTreeByPage(historyRef.current[historyIndex.current])
     setSelectedId(null)
+    setHistoryTick(tick => tick + 1)
   }, [])
 
   // ── Duplicate ──────────────────────────────────────────────────────────────
@@ -452,6 +467,7 @@ export default function Builder({
             onRedo={redo}
             canUndo={historyIndex.current > 0}
             canRedo={historyIndex.current < historyRef.current.length - 1}
+            historyTick={historyTick}
             onPreview={() => setIsPreview(true)}
             onExport={() => exportToHTML(elements, canvasSettings, projectName)}
           />
@@ -503,6 +519,7 @@ export default function Builder({
               <RightPanel
                 key={selectedId}
                 selected={selectedForPanel}
+                elements={elements}
                 onUpdate={handleUpdate}
                 canvasSettings={canvasSettings}
                 onCanvasUpdate={handleCanvasUpdate}

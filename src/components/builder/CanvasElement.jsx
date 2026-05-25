@@ -14,6 +14,12 @@ import {
 } from 'lucide-react'
 import { getElementLayout, getResponsiveValue, setElementLayout } from '../../utils/responsive'
 import { clampBoxToCanvas, getContainedElements, getSnapResult, isContainerElement } from '../../utils/editorGeometry'
+import { 
+  getResizeDirection, 
+  DEFAULT_MIN_WIDTH, 
+  DEFAULT_MIN_HEIGHT 
+} from './box-model/boxModelUtils'
+import { calculateStableResize } from './box-model/boxModelConstraints'
 
 const HANDLES = [
   { id: 'nw', cursor: 'nw-resize', style: { top: -5,               left: -5               } },
@@ -42,40 +48,56 @@ const ICON_COMPONENTS = {
 
 const STYLE_ID = '__canvas-el-styles__'
 
+const cssLength = (value, fallback = '0px') => {
+  const text = String(value ?? '').trim()
+  if (!text) return fallback
+  if (text === 'auto' || /^-?\d*\.?\d+(px|%|rem)$/i.test(text)) return text
+  if (/^-?\d*\.?\d+$/.test(text)) return `${text}px`
+  return fallback
+}
+
 function ensureCanvasElementStyles() {
   if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return
   const s = document.createElement('style')
   s.id = STYLE_ID
   s.textContent = `
+    /* Improved hover state with clear visual feedback */
     .ce-root:not(.ce-selected):hover::before {
       content: '';
       position: absolute;
       inset: -4px;
-      border: 1.5px solid #0EA5E9;
+      border: 2px solid #0EA5E9;
       border-radius: inherit;
       pointer-events: none;
       z-index: 12;
-      opacity: 0.95;
-      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+      opacity: 1;
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15), inset 0 0 0 1px rgba(14, 165, 233, 0.1);
+      transition: all 0.15s ease;
     }
+    
+    /* Hover label visibility */
     .ce-root:not(.ce-selected):hover .ce-hover-label { opacity: 1; }
+    
     .ce-hover-label {
       opacity: 0;
       transition: opacity 0.1s ease;
       position: absolute;
-      top: -22px;
+      top: -24px;
       left: 0;
-      background: #2348D7;
+      background: linear-gradient(135deg, #2348D7 0%, #1a37b8 100%);
       color: #fff;
-      font-size: 10px;
-      font-family: Inter, sans-serif;
-      font-weight: 500;
-      padding: 2px 6px;
+      font-size: 11px;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 600;
+      padding: 4px 8px;
       border-radius: 4px;
       white-space: nowrap;
       pointer-events: none;
       z-index: 20;
+      box-shadow: 0 2px 8px rgba(35, 72, 215, 0.3);
     }
+    
+    /* Improved selection outline with multiple layers for clarity */
     .ce-root.ce-selected::after {
       content: '';
       position: absolute;
@@ -84,9 +106,43 @@ function ensureCanvasElementStyles() {
       border-radius: inherit;
       pointer-events: none;
       z-index: 12;
-      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+      box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.15), 
+                  inset 0 0 0 1px rgba(14, 165, 233, 0.1),
+                  0 0 12px rgba(14, 165, 233, 0.2);
     }
+    
+    /* Outline indicator showing element boundaries */
+    .ce-root.ce-selected::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 1px solid rgba(14, 165, 233, 0.3);
+      border-radius: inherit;
+      pointer-events: none;
+      z-index: 11;
+      background: radial-gradient(circle at top-left, rgba(14, 165, 233, 0.08) 0%, transparent 100%);
+    }
+    
     .ce-root { cursor: move; }
+    
+    /* Selection handle styling */
+    .ce-resize-handle {
+      position: absolute;
+      background: white;
+      border: 2px solid #2348D7;
+      border-radius: 3px;
+      width: 10px;
+      height: 10px;
+      z-index: 20;
+      transition: all 0.1s ease;
+      box-shadow: 0 2px 6px rgba(35, 72, 215, 0.25);
+    }
+    
+    .ce-resize-handle:hover {
+      transform: scale(1.15);
+      box-shadow: 0 2px 8px rgba(35, 72, 215, 0.4);
+      background: #f0f8ff;
+    }
   `
   document.head.appendChild(s)
 }
@@ -216,46 +272,66 @@ export default function CanvasElement({
     e.stopPropagation()
     e.preventDefault()
     resizing.current = handleId
-    resizeStart.current = { mouseX: e.clientX, mouseY: e.clientY, x, y, w, h }
+    resizeStart.current = { 
+      mouseX: e.clientX, 
+      mouseY: e.clientY, 
+      x, 
+      y, 
+      w, 
+      h,
+      prevDimensions: { x, y, width: w, height: h }
+    }
 
     const onMove = (e) => {
       if (!resizing.current) return
       const dx = (e.clientX - resizeStart.current.mouseX) / zoom
       const dy = (e.clientY - resizeStart.current.mouseY) / zoom
-      const id = resizing.current
-      let { x: rx, y: ry, w: rw, h: rh } = resizeStart.current
-      let newX = rx, newY = ry, newW = rw, newH = rh
-
-      if (id.includes('e')) newW = Math.max(40, rw + dx)
-      if (id.includes('s')) newH = Math.max(20, rh + dy)
-      if (id.includes('w')) { newW = Math.max(40, rw - dx); newX = rx + (rw - newW) }
-      if (id.includes('n')) { newH = Math.max(20, rh - dy); newY = ry + (rh - newH) }
+      
+      // Calculate stable resize with constraints
+      const stableResize = calculateStableResize(
+        { x: 0, y: 0 },
+        { x: dx, y: dy },
+        resizeStart.current,
+        resizeStart.current.handleId || handleId,
+        {
+          minWidth: DEFAULT_MIN_WIDTH,
+          minHeight: DEFAULT_MIN_HEIGHT,
+          maxWidth: canvasWidth,
+          maxHeight: canvasHeight,
+          snapToGrid: false, // Disable grid snap for smooth dragging
+        }
+      )
 
       const clampedBox = clampBoxToCanvas({
-        x: newX,
-        y: newY,
-        width: newW,
-        height: newH,
+        x: stableResize.x,
+        y: stableResize.y,
+        width: stableResize.width,
+        height: stableResize.height,
       }, canvasWidth, canvasHeight)
 
       handleUpdate(element.id, {
-        x: Math.round(clampedBox.x), y: Math.round(clampedBox.y),
-        width: Math.round(clampedBox.width), height: Math.round(clampedBox.height),
+        x: Math.round(clampedBox.x), 
+        y: Math.round(clampedBox.y),
+        width: Math.round(clampedBox.width), 
+        height: Math.round(clampedBox.height),
       })
     }
+    
     const onUp = () => {
       resizing.current = null
+      resizeStart.current = {}
       onInteractionGuides?.({ vertical: [], horizontal: [] })
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
+    
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }
 
   /* ── Visual styles (not layout) ── */
   const fill    = element.fill        || 'transparent'
-  const radius  = element.radius      || 0
+  const radius  = cssLength(element.borderRadius ?? element.radius ?? 0)
   const border  = element.borderColor ? `1.5px solid ${element.borderColor}` : undefined
   const shadow  = element.shadowColor ? `0 4px 24px ${element.shadowColor}` : undefined
   const opacity = (element.opacity    ?? 100) / 100
@@ -294,7 +370,6 @@ const sharedTextProps = (
     outline: 'none',
     cursor: isEditing ? 'text' : 'move',
     width: '100%',
-    padding: '2px 4px',
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
     overflowWrap: 'anywhere',
@@ -333,12 +408,13 @@ const sharedTextProps = (
             width: `${w}px`, height: `${h}px`,
             backgroundColor: element.fill || '#2348D7',
             color: element.textColor || '#ffffff',
-            borderRadius: `${radius}px`, border: border || 'none', boxShadow: shadow,
+            borderRadius: radius, border: border || 'none', boxShadow: shadow,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: `${getResponsiveValue(element, activeBreakpoint, 'fontSize', 14)}px`,
             fontWeight: element.fontWeight || 500,
             fontFamily: element.fontFamily || 'inherit',
             cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+            boxSizing: 'border-box',
           }}>
             {element.content || 'Click me'}
           </div>
@@ -347,14 +423,17 @@ const sharedTextProps = (
         return element.src ? (
           <img src={element.src} alt="" style={{
             width: `${w}px`, height: `${h}px`,
-            objectFit: 'cover', borderRadius: `${radius}px`, border, boxShadow: shadow, display: 'block',
+            objectFit: 'cover', borderRadius: radius, border, boxShadow: shadow, display: 'block',
+            backgroundColor: fill !== 'transparent' ? fill : '#F3F6FB',
+            boxSizing: 'border-box',
           }} />
         ) : (
           <div style={{
             width: `${w}px`, height: `${h}px`,
             backgroundColor: fill !== 'transparent' ? fill : '#F3F6FB',
-            borderRadius: `${radius}px`, border: border || '1.5px dashed #D8E1F0', boxShadow: shadow,
+            borderRadius: radius, border: border || '1.5px dashed #D8E1F0', boxShadow: shadow,
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
+            boxSizing: 'border-box',
           }}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C5D0E4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="3"/>
@@ -368,8 +447,9 @@ const sharedTextProps = (
         return (
           <div style={{
             width: `${w}px`, height: `${h}px`,
-            backgroundColor: '#0F1A2E', borderRadius: `${radius}px`, border, boxShadow: shadow,
+            backgroundColor: '#0F1A2E', borderRadius: radius, border, boxShadow: shadow,
             display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '32px',
+            boxSizing: 'border-box',
           }}>▶</div>
         )
       case 'icon':
@@ -394,9 +474,10 @@ const sharedTextProps = (
         return (
           <div style={{
             width: `${w}px`, height: `${h}px`, backgroundColor: fill,
-            borderRadius: `${radius}px`,
+            borderRadius: radius,
             border: border || (fill === 'transparent' || !fill ? '1.5px dashed #D8E1F0' : 'none'),
             boxShadow: shadow, position: 'relative', overflow: 'hidden',
+            boxSizing: 'border-box',
           }} />
         )
       case 'input':
@@ -408,7 +489,7 @@ const sharedTextProps = (
               width: `${w}px`, height: `${h}px`,
               backgroundColor: element.fill || '#ffffff',
               color: element.textColor || '#111827',
-              borderRadius: `${radius}px`, border: border || '1.5px solid #D8E1F0',
+              borderRadius: radius, border: border || '1.5px solid #D8E1F0',
               padding: '0 12px', fontSize: `${getResponsiveValue(element, activeBreakpoint, 'fontSize', 14)}px`,
               fontFamily: element.fontFamily || 'inherit',
               outline: 'none', boxSizing: 'border-box', display: 'block',
@@ -423,7 +504,7 @@ const sharedTextProps = (
               width: `${w}px`, height: `${h}px`,
               backgroundColor: element.fill || '#ffffff',
               color: element.textColor || '#111827',
-              borderRadius: `${radius}px`, border: border || '1.5px solid #D8E1F0',
+              borderRadius: radius, border: border || '1.5px solid #D8E1F0',
               padding: '10px 12px', fontSize: `${getResponsiveValue(element, activeBreakpoint, 'fontSize', 14)}px`,
               fontFamily: element.fontFamily || 'inherit',
               outline: 'none', boxSizing: 'border-box', display: 'block', resize: 'none',
@@ -436,7 +517,7 @@ const sharedTextProps = (
             width: `${w}px`, height: `${h}px`,
             backgroundColor: element.fill || '#ffffff',
             color: element.textColor || '#111827',
-            borderRadius: `${radius}px`, border: border || '1.5px solid #D8E1F0',
+            borderRadius: radius, border: border || '1.5px solid #D8E1F0',
             padding: '0 12px', fontSize: `${getResponsiveValue(element, activeBreakpoint, 'fontSize', 14)}px`,
             fontFamily: element.fontFamily || 'inherit',
             boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -462,7 +543,8 @@ const sharedTextProps = (
           <div style={{
             width: `${w}px`, height: `${h}px`,
             backgroundColor: fill !== 'transparent' ? fill : '#F3F6FB',
-            borderRadius: `${radius}px`, border: border || '1.5px dashed #D8E1F0',
+            borderRadius: radius, border: border || '1.5px dashed #D8E1F0',
+            boxSizing: 'border-box',
           }} />
         )
     }
@@ -485,7 +567,7 @@ const sharedTextProps = (
         height:   `${h}px`,
         opacity,
         userSelect:   'none',
-        borderRadius: `${radius}px`,
+        borderRadius: radius,
         zIndex:       isFrameLike ? 0 : (isSelected ? 10 : 1),
       }}
     >
@@ -508,12 +590,17 @@ const sharedTextProps = (
       )}
 
       {isSelected && HANDLES.map(handle => (
-        <div key={handle.id} onMouseDown={e => handleResizeMouseDown(e, handle.id)} style={{
-          position: 'absolute', width: 9, height: 9,
-          backgroundColor: 'white', border: '1.5px solid #2348D7',
-          borderRadius: '2px', cursor: handle.cursor, zIndex: 20,
-          ...handle.style,
-        }} />
+        <div 
+          key={handle.id} 
+          className="ce-resize-handle"
+          onMouseDown={e => handleResizeMouseDown(e, handle.id)} 
+          style={{
+            position: 'absolute',
+            cursor: handle.cursor,
+            ...handle.style,
+          }}
+          title={`Resize ${handle.id}`}
+        />
       ))}
     </div>
   )

@@ -37,6 +37,9 @@ export default function Canvas({
   // ── Canvas dimensions ──────────────────────────────────────────────────────
   const canvasWidth = getCanvasWidth(activeBreakpoint, canvasSettings, customWidth)
 
+  // Auto-expands as elements are added / moved / resized.
+  // getCanvasHeight now reads element positions, so we include both
+  // `elements` and `activeBreakpoint` as dependencies.
   const canvasHeight = useMemo(
     () => getCanvasHeight(elements, canvasSettings, activeBreakpoint),
     [elements, canvasSettings, activeBreakpoint]
@@ -273,6 +276,8 @@ export default function Canvas({
               transform:       `scale(${zoom})`,
               transformOrigin: 'top center',
               flexShrink:      0,
+              // marginBottom accounts for the extra height introduced by scale(zoom).
+              // canvasHeight is now dynamic so this stays correct as the page grows.
               marginBottom:    `${canvasHeight * (zoom - 1)}px`,
               pointerEvents:   'auto',
             }}
@@ -303,13 +308,15 @@ export default function Canvas({
               onMouseLeave={() => setIsCanvasHover(false)}
               style={{
                 width:           `${canvasWidth}px`,
+                // Height is now driven by element positions — page grows automatically.
                 height:          `${canvasHeight}px`,
                 backgroundColor: canvasSettings?.fill || '#ffffff',
                 borderRadius:    '6px 6px 0 0',
                 position:        'relative',
-                overflow:        'hidden',
+                overflow:        'visible',   // changed from 'hidden' so elements outside
+                                              // the original bounds remain visible while
+                                              // React re-renders with the new height
                 pointerEvents:   activeTool === 'hand' ? 'none' : 'auto',
-                // Drag-over highlight wins; otherwise show canvas-frame or default shadow
                 boxShadow: dragOver
                   ? '0 0 0 2px #2348D7, 0 4px 40px rgba(0,0,0,0.10)'
                   : '0 4px 40px rgba(0,0,0,0.10)',
@@ -319,7 +326,7 @@ export default function Canvas({
                   ? 'radial-gradient(circle, #D8E1F0 1px, transparent 1px)'
                   : 'none',
                 backgroundSize: '24px 24px',
-                transition: 'box-shadow 0.15s, outline 0.15s',
+                transition: 'height 0.2s ease, box-shadow 0.15s, outline 0.15s',
               }}
               onClick={e => {
                 if (e.target === e.currentTarget && activeTool === 'cursor') {

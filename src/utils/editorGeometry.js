@@ -52,8 +52,13 @@ export function getContainedElements(containerElement, elements, breakpointId = 
   })
 }
 
-export function getCanvasHeight(elements, canvasSettings) {
-  return canvasSettings?.height || 900
+// ── Auto-expanding canvas height ───────────────────────────────────────────────
+// Delegates to getContentHeight so the canvas grows whenever elements extend
+// beyond the current bottom edge, exactly like Framer's page behaviour.
+// canvasSettings.height is used only as the minimum (floor) height.
+export function getCanvasHeight(elements, canvasSettings, breakpointId = 'desktop') {
+  const minHeight = canvasSettings?.height || 900
+  return getContentHeight(elements, breakpointId, minHeight)
 }
 
 export function getContentHeight(elements, breakpointId = 'desktop', minHeight = 900) {
