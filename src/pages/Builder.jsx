@@ -403,6 +403,10 @@ export default function Builder({
     setSelectedId(null)
   }
 
+  const handleUpdatePage = (id, changes) => {
+    setPages(prev => prev.map(p => p.id === id ? { ...p, ...changes } : p))
+  }
+
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -487,6 +491,7 @@ export default function Builder({
                 onAddPage={handleAddPage}
                 onRenamePage={handleRenamePage}
                 onDeletePage={handleDeletePage}
+                onUpdatePage={handleUpdatePage}
               />
             </div>
 

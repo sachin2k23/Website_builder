@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Plus,
   Search,
+  Settings,
 } from 'lucide-react'
 
 const GROUP_BG = '#EAF6FF'
@@ -158,8 +159,10 @@ function LayerRow({ node, depth = 0, selectedId, onSelect, hiddenIds, onToggleHi
   )
 }
 
-function PageRow({ page, isActive, onSelect, onRename, onDelete, canDelete }) {
+function PageRow({ page, isActive, onSelect, onRename, onDelete, onUpdate, canDelete }) {
   const [showMenu, setShowMenu] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [settingsForm, setSettingsForm] = useState({ title: page.title || '', slug: page.slug || '', metaDescription: page.metaDescription || '' })
 
   return (
     <div className="relative">
@@ -171,7 +174,10 @@ function PageRow({ page, isActive, onSelect, onRename, onDelete, canDelete }) {
         }`}
       >
         <Home size={13} className="shrink-0" />
-        <span className="flex-1 truncate">{page.name}</span>
+        <div className="flex-1 truncate">
+          <div className="truncate">{page.name}</div>
+          {page.slug && <div className="text-[10px] opacity-75">{page.slug}</div>}
+        </div>
         <span
           onClick={event => { event.stopPropagation(); setShowMenu(value => !value) }}
           className="rounded p-0.5 opacity-0 transition-opacity hover:bg-[#DBEAFE] group-hover:opacity-100"
@@ -181,7 +187,15 @@ function PageRow({ page, isActive, onSelect, onRename, onDelete, canDelete }) {
       </button>
 
       {showMenu && (
-        <div className="absolute left-full top-0 z-50 ml-1 w-36 overflow-hidden rounded-xl border border-[#D8E1F0] bg-white shadow-lg">
+        <div className="absolute left-full top-0 z-50 ml-1 w-40 overflow-hidden rounded-xl border border-[#D8E1F0] bg-white shadow-lg">
+          <button
+            type="button"
+            onClick={() => { setShowSettings(true); setShowMenu(false) }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[#243754] transition-colors hover:bg-[#F3F7FF]"
+          >
+            <Settings size={12} />
+            Settings
+          </button>
           <button
             type="button"
             onClick={() => { onRename(); setShowMenu(false) }}
@@ -200,6 +214,72 @@ function PageRow({ page, isActive, onSelect, onRename, onDelete, canDelete }) {
           )}
         </div>
       )}
+
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-lg shadow-xl p-5 w-96">
+            <h3 className="text-sm font-semibold text-[#0F2348] mb-4">Page Settings</h3>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-[#5E6F8E] mb-1">Page Title (for &lt;title&gt; tag)</label>
+                <input
+                  type="text"
+                  placeholder="Page title"
+                  value={settingsForm.title}
+                  onChange={e => setSettingsForm(p => ({ ...p, title: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-[#D8E1F0] rounded-lg bg-white text-[#0F2348] placeholder:text-[#8A8A8F] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[#5E6F8E] mb-1">Page Slug (URL path)</label>
+                <input
+                  type="text"
+                  placeholder="/page-slug"
+                  value={settingsForm.slug}
+                  onChange={e => setSettingsForm(p => ({ 
+                    ...p, 
+                    slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+                  }))}
+                  className="w-full px-3 py-2 text-sm border border-[#D8E1F0] rounded-lg bg-white text-[#0F2348] placeholder:text-[#8A8A8F] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-[#5E6F8E] mb-1">Meta Description ({settingsForm.metaDescription.length}/160)</label>
+                <textarea
+                  placeholder="SEO meta description (160 chars max)"
+                  value={settingsForm.metaDescription}
+                  onChange={e => setSettingsForm(p => ({ ...p, metaDescription: e.target.value.slice(0, 160) }))}
+                  maxLength="160"
+                  className="w-full px-3 py-2 text-sm border border-[#D8E1F0] rounded-lg bg-white text-[#0F2348] placeholder:text-[#8A8A8F] outline-none resize-none h-20"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-5">
+              <button
+                type="button"
+                onClick={() => setShowSettings(false)}
+                className="flex-1 px-3 py-2 text-sm font-medium text-[#5E6F8E] bg-[#F3F7FF] rounded-lg hover:bg-[#E3EFFF] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdate?.(page.id, settingsForm)
+                  setShowSettings(false)
+                }}
+                className="flex-1 px-3 py-2 text-sm font-medium text-white bg-[#2348D7] rounded-lg hover:bg-[#1A3BA0] transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -216,6 +296,7 @@ export default function LeftPanel({
   onAddPage,
   onRenamePage,
   onDeletePage,
+  onUpdatePage,
 }) {
   const tabs = ['Pages', 'Layers']
   const [search, setSearch] = useState('')
@@ -307,6 +388,7 @@ export default function LeftPanel({
                 onSelect={() => onSwitchPage(page.id)}
                 onRename={() => onRenamePage(page.id)}
                 onDelete={() => onDeletePage(page.id)}
+                onUpdate={onUpdatePage}
                 canDelete={pages.length > 1}
               />
             ))}

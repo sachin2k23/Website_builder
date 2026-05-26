@@ -405,20 +405,18 @@ const sharedTextProps = (
         )
       case 'button':
         return (
-          <div style={{
-            width: `${w}px`, height: `${h}px`,
-            backgroundColor: element.fill || '#2348D7',
-            color: element.textColor || '#ffffff',
-            borderRadius: radius, border: border || 'none', boxShadow: shadow,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: `${getResponsiveValue(element, activeBreakpoint, 'fontSize', 14)}px`,
-            fontWeight: element.fontWeight || 500,
-            fontFamily: element.fontFamily || 'inherit',
-            cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
-            boxSizing: 'border-box',
-          }}>
+          <button {...sharedTextProps(element.textColor || '#ffffff', 14, 500, 1.4)}
+            style={{
+              ...sharedTextProps(element.textColor || '#ffffff', 14, 500, 1.4).style,
+              width: `${w}px`, height: `${h}px`,
+              backgroundColor: element.fill || '#2348D7',
+              borderRadius: radius, border: border || 'none', boxShadow: shadow,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', whiteSpace: 'nowrap',
+              boxSizing: 'border-box', outline: 'none',
+            }}>
             {element.content || 'Click me'}
-          </div>
+          </button>
         )
       case 'image':
         return element.src ? (
