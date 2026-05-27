@@ -457,7 +457,9 @@ export default function Builder({
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#F0F2F8]">
       {isPreview ? (
         <PreviewMode
-          elements={elements}
+          pages={pages}
+          treeByPage={treeByPage}
+          activePageId={activePageId}
           canvasSettings={canvasSettings}
           onExit={() => setIsPreview(false)}
         />
@@ -525,6 +527,7 @@ export default function Builder({
                 key={selectedId}
                 selected={selectedForPanel}
                 elements={elements}
+                pages={pages}
                 onUpdate={handleUpdate}
                 canvasSettings={canvasSettings}
                 onCanvasUpdate={handleCanvasUpdate}
