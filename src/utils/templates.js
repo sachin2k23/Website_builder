@@ -1,594 +1,462 @@
-import { autoResponsive } from './responsive'
+import { generateResponsiveDefaults } from './responsive'
 
-/**
- * Run autoResponsive (gives us a tablet layout) then override the
- * phone breakpoint with a hand-crafted, Framer-quality stacked layout.
- */
-function withPhoneOverrides(elements, phoneMap = {}, tabletMap = {}) {
-  const auto = autoResponsive(elements)
-  return auto.map(el => {
-    const phone = phoneMap[el.id]
-    const tablet = tabletMap[el.id]
-    if (!phone && !tablet) return el
+// ── Art Deco template helpers ────────────────────────────────────────────────
+import {
+  artDecoElements,
+  isArtDecoTemplate,
+  applyArtDecoTheme,
+  getArtDecoCanvasFill,
+} from '../templates/ArtDecoTemplate'
+
+// ── BoldSummit template helpers ──────────────────────────────────────────────
+import {
+  boldSummitElements,
+  isBoldSummitTemplate,
+  applyBoldSummitTheme,
+  getBoldSummitCanvasFill,
+} from '../templates/BoldSummitTemplate'
+
+// ── NeuSummit template helpers ───────────────────────────────────────────────
+import {
+  neuSummitElements,
+  isNeuSummitTemplate,
+  applyNeuSummitTheme,
+  getNeuSummitCanvasFill,
+} from '../templates/NeuSummitTemplate'
+
+// ── PlayfulGeometric template helpers ────────────────────────────────────────
+import {
+  playfulGeometricElements,
+  isPlayfulGeometricTemplate,
+  applyPlayfulGeometricTheme,
+  getPlayfulGeometricCanvasFill,
+} from '../templates/PlayfulGeometricTemplate'
+
+// ── VaporWaveFest template helpers ───────────────────────────────────────────
+import {
+  vaporWaveFestElements,
+  isVaporWaveFestTemplate,
+  applyVaporWaveFestTheme,
+  getVaporWaveFestCanvasFill,
+} from '../templates/VaporWaveFestTemplate'
+
+// ── MinimalistMonochrome template helpers ────────────────────────────────────
+import {
+  minimalistMonochromeElements,
+  isMinimalistMonochromeTemplate,
+  applyMinimalistMonochromeTheme,
+  getMinimalistMonochromeCanvasFill,
+} from '../templates/MinimalistMonochromeTemplate'
+
+// ── FlatDesign template helpers ──────────────────────────────────────────────
+import {
+  flatDesignElements,
+  isFlatDesignTemplate,
+  applyFlatDesignTheme,
+  getFlatDesignCanvasFill,
+} from '../templates/FlatDesignTemplate'
+
+// ── BotanicalOrganic template helpers ────────────────────────────────────────
+import {
+  botanicalOrganicElements,
+  isBotanicalOrganicTemplate,
+  applyBotanicalOrganicTheme,
+  getBotanicalOrganicCanvasFill,
+} from '../templates/BotanicalOrganicTemplate'
+
+// ── Thumbnails — inline SVG data URIs, keyed by TEMPLATES key ────────────────
+// Importing here ensures every TEMPLATES entry gets its thumbnail at build time.
+// No static file paths, no missing assets, no runtime fetch required.
+import { TEMPLATE_THUMBNAILS } from '../templates/thumbnails/index'
+
+const withResponsive = (elements, width = 1200) =>
+  elements.map(element => generateResponsiveDefaults(element, width))
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TechSummit Template 1  (unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const techSummitBaseElements = [
+  { id: 'ts-nav-bg', type: 'container', name: 'Navigation Bar', x: 0, y: 0, width: 1200, height: 76, fill: '#080C14', borderColor: 'rgba(255,255,255,0.10)', radius: 0, opacity: 100 },
+  { id: 'ts-logo-box', type: 'container', name: 'Logo Mark', x: 48, y: 20, width: 36, height: 36, fill: '#3B82F6', radius: 8, opacity: 100 },
+  { id: 'ts-logo', type: 'heading', name: 'Logo Text', x: 94, y: 21, width: 180, height: 32, content: 'TechSummit', fontSize: 20, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-nav-links', type: 'paragraph', name: 'Navigation Links', x: 432, y: 27, width: 390, height: 24, content: 'Speakers     Schedule     Tickets     Sponsors', fontSize: 13, fontWeight: 500, fontFamily: 'Inter', textColor: '#9BAEC8', textAlign: 'center', opacity: 100 },
+  { id: 'ts-nav-cta', type: 'button', name: 'Navigation CTA', x: 1032, y: 17, width: 120, height: 42, content: 'Get Tickets', fill: '#3B82F6', textColor: '#ffffff', fontSize: 13, fontWeight: 700, fontFamily: 'Inter', radius: 10, opacity: 100 },
+
+  { id: 'ts-hero-bg', type: 'container', name: 'Hero Section', x: 0, y: 76, width: 1200, height: 620, fill: '#080C14', radius: 0, opacity: 100 },
+  { id: 'ts-hero-card', type: 'container', name: 'Hero Visual Card', x: 734, y: 156, width: 370, height: 380, fill: '#111B2E', borderColor: 'rgba(59,130,246,0.35)', radius: 28, shadowColor: 'rgba(59,130,246,0.24)', opacity: 100 },
+  { id: 'ts-hero-chip', type: 'label', name: 'Hero Eyebrow', x: 76, y: 150, width: 330, height: 28, content: 'JUNE 12-14, 2026 / SAN FRANCISCO', fontSize: 12, fontWeight: 800, fontFamily: 'Inter', textColor: '#93C5FD', fill: 'rgba(59,130,246,0.14)', radius: 999, opacity: 100 },
+  { id: 'ts-hero-title', type: 'heading', name: 'Hero Title', x: 72, y: 198, width: 620, height: 188, content: 'Where builders shape the next decade of technology.', fontSize: 58, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', lineHeight: 1.08, opacity: 100 },
+  { id: 'ts-hero-copy', type: 'paragraph', name: 'Hero Description', x: 76, y: 410, width: 540, height: 72, content: 'Three days of AI, infrastructure, security, design systems, and the people shipping the future.', fontSize: 18, fontWeight: 400, fontFamily: 'Inter', textColor: '#9BAEC8', lineHeight: 1.6, opacity: 100 },
+  { id: 'ts-hero-primary', type: 'button', name: 'Primary CTA', x: 76, y: 518, width: 162, height: 52, content: 'Reserve Seat', fill: '#3B82F6', textColor: '#ffffff', fontSize: 15, fontWeight: 800, fontFamily: 'Inter', radius: 12, opacity: 100 },
+  { id: 'ts-hero-secondary', type: 'button', name: 'Secondary CTA', x: 254, y: 518, width: 150, height: 52, content: 'View Agenda', fill: 'transparent', textColor: '#DDE7FF', borderColor: 'rgba(255,255,255,0.18)', fontSize: 15, fontWeight: 700, fontFamily: 'Inter', radius: 12, opacity: 100 },
+  { id: 'ts-visual-title', type: 'heading', name: 'Visual Title', x: 774, y: 198, width: 290, height: 72, content: 'Main Stage', fontSize: 34, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-visual-copy', type: 'paragraph', name: 'Visual Copy', x: 774, y: 282, width: 280, height: 96, content: 'Keynotes, workshops, panels, and hands-on demos from industry leaders.', fontSize: 15, fontFamily: 'Inter', textColor: '#9BAEC8', lineHeight: 1.65, opacity: 100 },
+  { id: 'ts-visual-stat-a', type: 'heading', name: 'Visual Stat Speakers', x: 774, y: 416, width: 120, height: 44, content: '50+', fontSize: 38, fontWeight: 800, fontFamily: 'Inter', textColor: '#60A5FA', opacity: 100 },
+  { id: 'ts-visual-stat-b', type: 'heading', name: 'Visual Stat Attendees', x: 936, y: 416, width: 130, height: 44, content: '5k', fontSize: 38, fontWeight: 800, fontFamily: 'Inter', textColor: '#60A5FA', opacity: 100 },
+  { id: 'ts-visual-label-a', type: 'paragraph', name: 'Speakers Label', x: 774, y: 464, width: 120, height: 22, content: 'Speakers', fontSize: 13, fontFamily: 'Inter', textColor: '#9BAEC8', opacity: 100 },
+  { id: 'ts-visual-label-b', type: 'paragraph', name: 'Attendees Label', x: 936, y: 464, width: 130, height: 22, content: 'Attendees', fontSize: 13, fontFamily: 'Inter', textColor: '#9BAEC8', opacity: 100 },
+
+  { id: 'ts-stats-bg', type: 'container', name: 'Stats Band', x: 0, y: 696, width: 1200, height: 132, fill: '#0D1525', borderColor: 'rgba(255,255,255,0.08)', radius: 0, opacity: 100 },
+  { id: 'ts-stat-1', type: 'heading', name: 'Stat 1', x: 100, y: 724, width: 180, height: 42, content: '3 Days', fontSize: 34, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-stat-1-label', type: 'paragraph', name: 'Stat 1 Label', x: 100, y: 770, width: 180, height: 22, content: 'conference program', fontSize: 13, fontFamily: 'Inter', textColor: '#9BAEC8', opacity: 100 },
+  { id: 'ts-stat-2', type: 'heading', name: 'Stat 2', x: 372, y: 724, width: 180, height: 42, content: '80+', fontSize: 34, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-stat-2-label', type: 'paragraph', name: 'Stat 2 Label', x: 372, y: 770, width: 180, height: 22, content: 'technical sessions', fontSize: 13, fontFamily: 'Inter', textColor: '#9BAEC8', opacity: 100 },
+  { id: 'ts-stat-3', type: 'heading', name: 'Stat 3', x: 644, y: 724, width: 180, height: 42, content: '24', fontSize: 34, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-stat-3-label', type: 'paragraph', name: 'Stat 3 Label', x: 644, y: 770, width: 180, height: 22, content: 'workshops', fontSize: 13, fontFamily: 'Inter', textColor: '#9BAEC8', opacity: 100 },
+  { id: 'ts-stat-4', type: 'heading', name: 'Stat 4', x: 916, y: 724, width: 180, height: 42, content: '120', fontSize: 34, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-stat-4-label', type: 'paragraph', name: 'Stat 4 Label', x: 916, y: 770, width: 180, height: 22, content: 'sponsors & demos', fontSize: 13, fontFamily: 'Inter', textColor: '#9BAEC8', opacity: 100 },
+
+  { id: 'ts-speakers-bg', type: 'container', name: 'Speakers Section', x: 0, y: 828, width: 1200, height: 520, fill: '#080C14', radius: 0, opacity: 100 },
+  { id: 'ts-speakers-kicker', type: 'label', name: 'Speakers Kicker', x: 100, y: 890, width: 170, height: 24, content: 'SPEAKERS', fontSize: 11, fontWeight: 800, fontFamily: 'Inter', textColor: '#60A5FA', opacity: 100 },
+  { id: 'ts-speakers-title', type: 'heading', name: 'Speakers Heading', x: 100, y: 926, width: 520, height: 58, content: 'Leaders from the front lines.', fontSize: 42, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', lineHeight: 1.12, opacity: 100 },
+  { id: 'ts-speaker-card-1', type: 'container', name: 'Speaker Card 1', x: 100, y: 1032, width: 235, height: 220, fill: '#111B2E', borderColor: 'rgba(255,255,255,0.08)', radius: 18, opacity: 100 },
+  { id: 'ts-speaker-1-name', type: 'heading', name: 'Speaker 1 Name', x: 124, y: 1064, width: 187, height: 32, content: 'Sarah Chen', fontSize: 20, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-speaker-1-role', type: 'paragraph', name: 'Speaker 1 Role', x: 124, y: 1104, width: 187, height: 52, content: 'CEO, Nexus AI\nFoundation Models', fontSize: 13, fontFamily: 'Inter', textColor: '#9BAEC8', lineHeight: 1.55, opacity: 100 },
+  { id: 'ts-speaker-card-2', type: 'container', name: 'Speaker Card 2', x: 355, y: 1032, width: 235, height: 220, fill: '#111B2E', borderColor: 'rgba(255,255,255,0.08)', radius: 18, opacity: 100 },
+  { id: 'ts-speaker-2-name', type: 'heading', name: 'Speaker 2 Name', x: 379, y: 1064, width: 187, height: 32, content: 'Marcus Webb', fontSize: 20, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-speaker-2-role', type: 'paragraph', name: 'Speaker 2 Role', x: 379, y: 1104, width: 187, height: 52, content: 'CTO, Orbital\nDistributed Systems', fontSize: 13, fontFamily: 'Inter', textColor: '#9BAEC8', lineHeight: 1.55, opacity: 100 },
+  { id: 'ts-speaker-card-3', type: 'container', name: 'Speaker Card 3', x: 610, y: 1032, width: 235, height: 220, fill: '#111B2E', borderColor: 'rgba(255,255,255,0.08)', radius: 18, opacity: 100 },
+  { id: 'ts-speaker-3-name', type: 'heading', name: 'Speaker 3 Name', x: 634, y: 1064, width: 187, height: 32, content: 'Priya Nair', fontSize: 20, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-speaker-3-role', type: 'paragraph', name: 'Speaker 3 Role', x: 634, y: 1104, width: 187, height: 52, content: 'Research Lead\nAI Safety', fontSize: 13, fontFamily: 'Inter', textColor: '#9BAEC8', lineHeight: 1.55, opacity: 100 },
+  { id: 'ts-speaker-card-4', type: 'container', name: 'Speaker Card 4', x: 865, y: 1032, width: 235, height: 220, fill: '#111B2E', borderColor: 'rgba(255,255,255,0.08)', radius: 18, opacity: 100 },
+  { id: 'ts-speaker-4-name', type: 'heading', name: 'Speaker 4 Name', x: 889, y: 1064, width: 187, height: 32, content: 'Elena Vasquez', fontSize: 20, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-speaker-4-role', type: 'paragraph', name: 'Speaker 4 Role', x: 889, y: 1104, width: 187, height: 52, content: 'VP Engineering\nPayments at Scale', fontSize: 13, fontFamily: 'Inter', textColor: '#9BAEC8', lineHeight: 1.55, opacity: 100 },
+
+  { id: 'ts-schedule-bg', type: 'container', name: 'Schedule Section', x: 0, y: 1348, width: 1200, height: 520, fill: '#0D1525', radius: 0, opacity: 100 },
+  { id: 'ts-schedule-kicker', type: 'label', name: 'Schedule Kicker', x: 100, y: 1410, width: 170, height: 24, content: 'SCHEDULE', fontSize: 11, fontWeight: 800, fontFamily: 'Inter', textColor: '#60A5FA', opacity: 100 },
+  { id: 'ts-schedule-title', type: 'heading', name: 'Schedule Heading', x: 100, y: 1446, width: 520, height: 58, content: 'A focused agenda for builders.', fontSize: 42, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', lineHeight: 1.12, opacity: 100 },
+  { id: 'ts-agenda-card', type: 'container', name: 'Agenda Card', x: 100, y: 1540, width: 1000, height: 220, fill: '#111B2E', borderColor: 'rgba(255,255,255,0.08)', radius: 20, opacity: 100 },
+  { id: 'ts-agenda-1-time', type: 'label', name: 'Agenda 1 Time', x: 140, y: 1576, width: 100, height: 24, content: '09:00', fontSize: 12, fontWeight: 800, fontFamily: 'Inter', textColor: '#93C5FD', opacity: 100 },
+  { id: 'ts-agenda-1-title', type: 'heading', name: 'Agenda 1 Title', x: 260, y: 1570, width: 660, height: 34, content: 'Opening Keynote: The Next Platform Shift', fontSize: 22, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-agenda-2-time', type: 'label', name: 'Agenda 2 Time', x: 140, y: 1642, width: 100, height: 24, content: '11:00', fontSize: 12, fontWeight: 800, fontFamily: 'Inter', textColor: '#93C5FD', opacity: 100 },
+  { id: 'ts-agenda-2-title', type: 'heading', name: 'Agenda 2 Title', x: 260, y: 1636, width: 660, height: 34, content: 'Workshop: Building Reliable AI Workflows', fontSize: 22, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-agenda-3-time', type: 'label', name: 'Agenda 3 Time', x: 140, y: 1708, width: 100, height: 24, content: '15:30', fontSize: 12, fontWeight: 800, fontFamily: 'Inter', textColor: '#93C5FD', opacity: 100 },
+  { id: 'ts-agenda-3-title', type: 'heading', name: 'Agenda 3 Title', x: 260, y: 1702, width: 660, height: 34, content: 'Panel: Security, Scale, and Open Source', fontSize: 22, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+
+  { id: 'ts-ticket-bg', type: 'container', name: 'Tickets Section', x: 0, y: 1868, width: 1200, height: 560, fill: '#080C14', radius: 0, opacity: 100 },
+  { id: 'ts-ticket-title', type: 'heading', name: 'Tickets Heading', x: 100, y: 1940, width: 520, height: 58, content: 'Choose your conference pass.', fontSize: 42, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', lineHeight: 1.12, opacity: 100 },
+  { id: 'ts-ticket-card-1', type: 'container', name: 'Community Ticket', x: 100, y: 2040, width: 300, height: 250, fill: '#111B2E', borderColor: 'rgba(255,255,255,0.08)', radius: 20, opacity: 100 },
+  { id: 'ts-ticket-1-title', type: 'heading', name: 'Community Title', x: 130, y: 2076, width: 240, height: 32, content: 'Community', fontSize: 22, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-ticket-1-price', type: 'heading', name: 'Community Price', x: 130, y: 2124, width: 220, height: 56, content: '$299', fontSize: 42, fontWeight: 800, fontFamily: 'Inter', textColor: '#60A5FA', opacity: 100 },
+  { id: 'ts-ticket-1-copy', type: 'paragraph', name: 'Community Copy', x: 130, y: 2190, width: 230, height: 58, content: 'General admission, expo access, and recorded sessions.', fontSize: 14, fontFamily: 'Inter', textColor: '#9BAEC8', lineHeight: 1.55, opacity: 100 },
+  { id: 'ts-ticket-card-2', type: 'container', name: 'Professional Ticket', x: 450, y: 2020, width: 300, height: 290, fill: '#141F34', borderColor: '#3B82F6', radius: 20, shadowColor: 'rgba(59,130,246,0.22)', opacity: 100 },
+  { id: 'ts-ticket-2-title', type: 'heading', name: 'Professional Title', x: 480, y: 2056, width: 240, height: 32, content: 'Professional', fontSize: 22, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-ticket-2-price', type: 'heading', name: 'Professional Price', x: 480, y: 2104, width: 220, height: 56, content: '$599', fontSize: 42, fontWeight: 800, fontFamily: 'Inter', textColor: '#60A5FA', opacity: 100 },
+  { id: 'ts-ticket-2-copy', type: 'paragraph', name: 'Professional Copy', x: 480, y: 2170, width: 230, height: 76, content: 'Everything in Community plus workshops, priority seating, and VIP networking.', fontSize: 14, fontFamily: 'Inter', textColor: '#9BAEC8', lineHeight: 1.55, opacity: 100 },
+  { id: 'ts-ticket-card-3', type: 'container', name: 'Executive Ticket', x: 800, y: 2040, width: 300, height: 250, fill: '#111B2E', borderColor: 'rgba(255,255,255,0.08)', radius: 20, opacity: 100 },
+  { id: 'ts-ticket-3-title', type: 'heading', name: 'Executive Title', x: 830, y: 2076, width: 240, height: 32, content: 'Executive', fontSize: 22, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', opacity: 100 },
+  { id: 'ts-ticket-3-price', type: 'heading', name: 'Executive Price', x: 830, y: 2124, width: 220, height: 56, content: '$1299', fontSize: 42, fontWeight: 800, fontFamily: 'Inter', textColor: '#60A5FA', opacity: 100 },
+  { id: 'ts-ticket-3-copy', type: 'paragraph', name: 'Executive Copy', x: 830, y: 2190, width: 230, height: 58, content: 'Private roundtables, founder dinner, and concierge access.', fontSize: 14, fontFamily: 'Inter', textColor: '#9BAEC8', lineHeight: 1.55, opacity: 100 },
+
+  { id: 'ts-footer-bg', type: 'container', name: 'Footer Section', x: 0, y: 2428, width: 1200, height: 260, fill: '#0D1525', borderColor: 'rgba(255,255,255,0.08)', radius: 0, opacity: 100 },
+  { id: 'ts-footer-title', type: 'heading', name: 'Footer CTA', x: 100, y: 2488, width: 680, height: 62, content: 'Ready for three days of serious building?', fontSize: 42, fontWeight: 800, fontFamily: 'Inter', textColor: '#F0F4FF', lineHeight: 1.15, opacity: 100 },
+  { id: 'ts-footer-button', type: 'button', name: 'Footer Button', x: 850, y: 2500, width: 170, height: 52, content: 'Get Tickets', fill: '#3B82F6', textColor: '#ffffff', fontSize: 15, fontWeight: 800, fontFamily: 'Inter', radius: 12, opacity: 100 },
+  { id: 'ts-footer-copy', type: 'paragraph', name: 'Footer Copyright', x: 100, y: 2622, width: 460, height: 22, content: '© 2026 TechSummit. All rights reserved.', fontSize: 13, fontFamily: 'Inter', textColor: '#9BAEC8', opacity: 100 },
+  { id: 'ts-footer-links', type: 'paragraph', name: 'Footer Links', x: 760, y: 2622, width: 340, height: 22, content: 'Privacy     Terms     Contact', fontSize: 13, fontFamily: 'Inter', textColor: '#9BAEC8', textAlign: 'right', opacity: 100 },
+]
+
+// ── TechSummit 1 light/dark theme helpers ─────────────────────────────────────
+
+const LIGHT_THEME_VALUES = {
+  '#080C14': '#F8FAFF',
+  '#0D1525': '#FFFFFF',
+  '#111B2E': '#FFFFFF',
+  '#141F34': '#EEF3FF',
+  '#F0F4FF': '#0F172A',
+  '#9BAEC8': '#475569',
+  '#5F7394': '#64748B',
+  '#DDE7FF': '#1D4ED8',
+  '#93C5FD': '#2563EB',
+  '#60A5FA': '#2563EB',
+  'rgba(255,255,255,0.10)': '#D8E1F0',
+  'rgba(255,255,255,0.08)': '#E2E8F4',
+  'rgba(255,255,255,0.18)': '#C7D2FE',
+  'rgba(59,130,246,0.14)': '#DBEAFE',
+  'rgba(59,130,246,0.24)': 'rgba(37,99,235,0.16)',
+  'rgba(59,130,246,0.22)': 'rgba(37,99,235,0.14)',
+}
+
+function toLightTheme(element) {
+  const next = { ...element }
+  ;['fill', 'textColor', 'borderColor', 'shadowColor'].forEach(key => {
+    if (LIGHT_THEME_VALUES[next[key]]) next[key] = LIGHT_THEME_VALUES[next[key]]
+  })
+  if (next.fill === 'transparent' && next.textColor === '#DDE7FF') {
+    next.textColor = '#1D4ED8'
+  }
+  return next
+}
+
+const techSummitElements = withResponsive(techSummitBaseElements.map(toLightTheme))
+
+const techSummitThemeById = {
+  dark:  Object.fromEntries(techSummitBaseElements.map(el => [el.id, el])),
+  light: Object.fromEntries(techSummitBaseElements.map(toLightTheme).map(el => [el.id, el])),
+}
+
+export function isTechSummitTemplate(elements = []) {
+  return elements.some(element => String(element.id || '').startsWith('ts-'))
+}
+
+export function isAnyTechSummitTemplate(elements = []) {
+  return isTechSummitTemplate(elements) || isTechSummit2Template(elements)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// isAnyTemplate — convenience helper covering all registered templates
+// ─────────────────────────────────────────────────────────────────────────────
+export function isAnyTemplate(elements = []) {
+  return (
+    isTechSummitTemplate(elements)           ||
+    isBoldSummitTemplate(elements)           ||
+    isArtDecoTemplate(elements)              ||
+    isNeuSummitTemplate(elements)            ||
+    isPlayfulGeometricTemplate(elements)     ||
+    isVaporWaveFestTemplate(elements)        ||
+    isMinimalistMonochromeTemplate(elements) ||
+    isFlatDesignTemplate(elements)           ||
+    isBotanicalOrganicTemplate(elements)
+  )
+}
+
+export function applyTechSummitTheme(elements = [], theme = 'dark') {
+  const palette = techSummitThemeById[theme] || techSummitThemeById.dark
+  return elements.map(element => {
+    const themed = palette[element.id]
+    if (!themed) return element
     return {
-      ...el,
-      breakpoints: {
-        ...(el.breakpoints ?? {}),
-        ...(tablet ? { tablet, custom: tablet } : {}),
-        ...(phone ? { phone } : {}),
-      },
+      ...element,
+      fill:        themed.fill,
+      textColor:   themed.textColor,
+      borderColor: themed.borderColor,
+      shadowColor: themed.shadowColor,
     }
   })
 }
 
-const LANDING_PHONE = {
-  l1:  { x: 0,   y: 0,    width: 390, height: 108 },
-  l2:  { x: 24,  y: 18,   width: 160, height: 32, fontSize: 20 },
-  l3:  { x: 24,  y: 76,   width: 342, height: 22, fontSize: 11, textAlign: 'center' },
-  l4:  { x: 222, y: 14,   width: 144, height: 36, fontSize: 12 },
-  l5:  { x: 140, y: 14,   width: 74,  height: 36, fontSize: 11 },
-  l6:  { x: 0,   y: 108,  width: 390, height: 692 },
-  l7:  { x: 50,  y: 130,  width: 290, height: 30 },
-  l8:  { x: 50,  y: 136,  width: 290, height: 20, fontSize: 11 },
-  l9:  { x: 24,  y: 180,  width: 342, height: 120, fontSize: 34, lineHeight: 1.1, textAlign: 'center' },
-  l10: { x: 24,  y: 320,  width: 342, height: 78,  fontSize: 14, textAlign: 'center' },
-  l11: { x: 24,  y: 412,  width: 342, height: 50,  fontSize: 14 },
-  l12: { x: 24,  y: 474,  width: 342, height: 50,  fontSize: 14 },
-  l13: { x: 24,  y: 538,  width: 342, height: 20,  fontSize: 11, textAlign: 'center' },
-  l14: { x: 24,  y: 572,  width: 342, height: 210, radius: 16 },
-  l15: { x: 24,  y: 820,  width: 342, height: 20,  fontSize: 10, textAlign: 'center' },
-  l16: { x: 24,  y: 850,  width: 342, height: 70,  fontSize: 28, textAlign: 'center' },
-  l17: { x: 24,  y: 940,  width: 342, height: 156 },
-  l18: { x: 48,  y: 962,  width: 294, height: 32,  fontSize: 18 },
-  l19: { x: 48,  y: 1000, width: 294, height: 80,  fontSize: 13, lineHeight: 1.6 },
-  l20: { x: 24,  y: 1112, width: 342, height: 156 },
-  l21: { x: 48,  y: 1134, width: 294, height: 32,  fontSize: 18 },
-  l22: { x: 48,  y: 1172, width: 294, height: 80,  fontSize: 13, lineHeight: 1.6 },
-  l23: { x: 24,  y: 1284, width: 342, height: 156 },
-  l24: { x: 48,  y: 1306, width: 294, height: 32,  fontSize: 18 },
-  l25: { x: 48,  y: 1344, width: 294, height: 80,  fontSize: 13, lineHeight: 1.6 },
-  l26: { x: 24,  y: 1490, width: 342, height: 20,  fontSize: 10, textAlign: 'center' },
-  l27: { x: 24,  y: 1520, width: 342, height: 50,  fontSize: 28, textAlign: 'center' },
-  l28: { x: 24,  y: 1600, width: 342, height: 290, radius: 20 },
-  l29: { x: 48,  y: 1622, width: 294, height: 32,  fontSize: 22 },
-  l30: { x: 48,  y: 1662, width: 294, height: 44,  fontSize: 30 },
-  l31: { x: 48,  y: 1714, width: 294, height: 100, fontSize: 13, lineHeight: 1.8 },
-  l32: { x: 48,  y: 1828, width: 294, height: 44,  fontSize: 14 },
-  l33: { x: 24,  y: 1910, width: 342, height: 340, radius: 20 },
-  l34: { x: 48,  y: 1932, width: 294, height: 32,  fontSize: 22 },
-  l35: { x: 48,  y: 1968, width: 294, height: 22,  fontSize: 11 },
-  l36: { x: 48,  y: 1996, width: 294, height: 44,  fontSize: 30 },
-  l37: { x: 48,  y: 2048, width: 294, height: 100, fontSize: 13, lineHeight: 1.8 },
-  l38: { x: 48,  y: 2168, width: 294, height: 44,  fontSize: 14 },
-  l39: { x: 0,   y: 2270, width: 390, height: 240 },
-  l40: { x: 24,  y: 2304, width: 342, height: 80,  fontSize: 26, textAlign: 'center', lineHeight: 1.2 },
-  l41: { x: 24,  y: 2410, width: 342, height: 50,  fontSize: 14 },
+// ─────────────────────────────────────────────────────────────────────────────
+// applyThemeToTemplate — dispatches to the correct per-template apply fn
+// ─────────────────────────────────────────────────────────────────────────────
+export function applyThemeToTemplate(elements = [], theme = 'dark') {
+  if (isTechSummitTemplate(elements))           return applyTechSummitTheme(elements, theme)
+  if (isBoldSummitTemplate(elements))           return applyBoldSummitTheme(elements, theme)
+  if (isArtDecoTemplate(elements))              return applyArtDecoTheme(elements, theme)
+  if (isNeuSummitTemplate(elements))            return applyNeuSummitTheme(elements, theme)
+  if (isPlayfulGeometricTemplate(elements))     return applyPlayfulGeometricTheme(elements, theme)
+  if (isVaporWaveFestTemplate(elements))        return applyVaporWaveFestTheme(elements, theme)
+  if (isMinimalistMonochromeTemplate(elements)) return applyMinimalistMonochromeTheme(elements, theme)
+  if (isFlatDesignTemplate(elements))           return applyFlatDesignTheme(elements, theme)
+  if (isBotanicalOrganicTemplate(elements))     return applyBotanicalOrganicTheme(elements, theme)
+  return elements
 }
 
-const BLOG_PHONE = {
-  b1:  { x: 0,   y: 0,    width: 390, height: 108 },
-  b2:  { x: 24,  y: 20,   width: 240, height: 30, fontSize: 18 },
-  b3:  { x: 24,  y: 78,   width: 342, height: 22, fontSize: 11, textAlign: 'center' },
-  b4:  { x: 280, y: 14,   width: 86,  height: 36, fontSize: 11 },
-  b5:  { x: 0,   y: 108,  width: 390, height: 2 },
-  b6:  { x: 24,  y: 124,  width: 342, height: 220, radius: 16 },
-  b7:  { x: 24,  y: 124,  width: 96,  height: 26 },
-  b8:  { x: 30,  y: 130,  width: 84,  height: 18, fontSize: 9 },
-  b9:  { x: 24,  y: 360,  width: 342, height: 18, fontSize: 10 },
-  b10: { x: 24,  y: 386,  width: 342, height: 96, fontSize: 26, lineHeight: 1.2 },
-  b11: { x: 24,  y: 494,  width: 342, height: 60, fontSize: 14, lineHeight: 1.6 },
-  b12: { x: 24,  y: 566,  width: 342, height: 22, fontSize: 12 },
-  b13: { x: 24,  y: 614,  width: 342, height: 32, fontSize: 20 },
-  b14: { x: 24,  y: 654,  width: 342, height: 1 },
-  b15: { x: 24,  y: 670,  width: 90,  height: 64, radius: 8 },
-  b16: { x: 128, y: 672,  width: 238, height: 14, fontSize: 9 },
-  b17: { x: 128, y: 690,  width: 238, height: 36, fontSize: 13 },
-  b18: { x: 128, y: 728,  width: 238, height: 18, fontSize: 10 },
-  b19: { x: 24,  y: 752,  width: 342, height: 1 },
-  b20: { x: 24,  y: 768,  width: 90,  height: 64, radius: 8 },
-  b21: { x: 128, y: 770,  width: 238, height: 14, fontSize: 9 },
-  b22: { x: 128, y: 788,  width: 238, height: 36, fontSize: 13 },
-  b23: { x: 128, y: 826,  width: 238, height: 18, fontSize: 10 },
-  b24: { x: 24,  y: 850,  width: 342, height: 1 },
-  b25: { x: 24,  y: 866,  width: 90,  height: 64, radius: 8 },
-  b26: { x: 128, y: 868,  width: 238, height: 14, fontSize: 9 },
-  b27: { x: 128, y: 886,  width: 238, height: 36, fontSize: 13 },
-  b28: { x: 128, y: 924,  width: 238, height: 18, fontSize: 10 },
-  b29: { x: 24,  y: 970,  width: 342, height: 200, radius: 16 },
-  b30: { x: 48,  y: 990,  width: 294, height: 30, fontSize: 18 },
-  b31: { x: 48,  y: 1024, width: 294, height: 22, fontSize: 13 },
-  b32: { x: 48,  y: 1058, width: 294, height: 42 },
-  b33: { x: 48,  y: 1110, width: 294, height: 42, fontSize: 14 },
-  b34: { x: 24,  y: 1200, width: 342, height: 40, fontSize: 24 },
-  b35: { x: 24,  y: 1244, width: 342, height: 22, fontSize: 12, textAlign: 'left' },
-  b36: { x: 24,  y: 1280, width: 342, height: 200, radius: 14 },
-  b37: { x: 24,  y: 1494, width: 342, height: 18, fontSize: 9 },
-  b38: { x: 24,  y: 1516, width: 342, height: 48, fontSize: 18 },
-  b39: { x: 24,  y: 1584, width: 342, height: 200, radius: 14 },
-  b40: { x: 24,  y: 1798, width: 342, height: 18, fontSize: 9 },
-  b41: { x: 24,  y: 1820, width: 342, height: 48, fontSize: 18 },
-  b42: { x: 24,  y: 1888, width: 342, height: 200, radius: 14 },
-  b43: { x: 24,  y: 2102, width: 342, height: 18, fontSize: 9 },
-  b44: { x: 24,  y: 2124, width: 342, height: 48, fontSize: 18 },
-  b45: { x: 24,  y: 2200, width: 342, height: 1 },
-  b46: { x: 24,  y: 2220, width: 342, height: 22, fontSize: 12 },
-  b47: { x: 24,  y: 2256, width: 342, height: 22, fontSize: 12, textAlign: 'left' },
+export function getTechSummitCanvasFill(theme = 'dark') {
+  return theme === 'light' ? '#F8FAFF' : '#080C14'
 }
 
-const AGENCY_TABLET = {
-  a23: { x: 32,  y: 1306, width: 150, height: 220 },
-  a24: { x: 48,  y: 1328, width: 118, height: 34, fontSize: 12, lineHeight: 1.25 },
-  a25: { x: 48,  y: 1378, width: 118, height: 118, fontSize: 10, lineHeight: 1.55 },
-  a26: { x: 194, y: 1306, width: 150, height: 220 },
-  a27: { x: 210, y: 1328, width: 118, height: 34, fontSize: 12, lineHeight: 1.25 },
-  a28: { x: 210, y: 1378, width: 118, height: 118, fontSize: 10, lineHeight: 1.55 },
-  a29: { x: 356, y: 1306, width: 150, height: 220 },
-  a30: { x: 372, y: 1328, width: 118, height: 34, fontSize: 12, lineHeight: 1.25 },
-  a31: { x: 372, y: 1378, width: 118, height: 118, fontSize: 10, lineHeight: 1.55 },
-  a32: { x: 518, y: 1306, width: 150, height: 220 },
-  a33: { x: 534, y: 1328, width: 118, height: 34, fontSize: 12, lineHeight: 1.25 },
-  a34: { x: 534, y: 1378, width: 118, height: 118, fontSize: 10, lineHeight: 1.55 },
+// ─────────────────────────────────────────────────────────────────────────────
+// getCanvasFillByTemplate — returns the correct root background per template
+// ─────────────────────────────────────────────────────────────────────────────
+export function getCanvasFillByTemplate(elements = [], theme = 'dark') {
+  if (isTechSummitTemplate(elements))           return getTechSummitCanvasFill(theme)
+  if (isBoldSummitTemplate(elements))           return getBoldSummitCanvasFill(theme)
+  if (isArtDecoTemplate(elements))              return getArtDecoCanvasFill(theme)
+  if (isNeuSummitTemplate(elements))            return getNeuSummitCanvasFill(theme)
+  if (isPlayfulGeometricTemplate(elements))     return getPlayfulGeometricCanvasFill(theme)
+  if (isVaporWaveFestTemplate(elements))        return getVaporWaveFestCanvasFill(theme)
+  if (isMinimalistMonochromeTemplate(elements)) return getMinimalistMonochromeCanvasFill(theme)
+  if (isFlatDesignTemplate(elements))           return getFlatDesignCanvasFill(theme)
+  if (isBotanicalOrganicTemplate(elements))     return getBotanicalOrganicCanvasFill(theme)
+  return theme === 'dark' ? '#000000' : '#ffffff'
 }
 
-function makePortfolioResponsive(elements) {
-  const breakpoints = {
-    p1: { tablet: { x: 0, y: 0, width: 768, height: 68 }, phone: { x: 0, y: 0, width: 390, height: 120 } },
-    p2: { tablet: { x: 32, y: 16, width: 180, height: 36 }, phone: { x: 24, y: 18, width: 180, height: 32, fontSize: 20 } },
-    p3: { tablet: { x: 330, y: 22, width: 280, height: 24 }, phone: { x: 24, y: 72, width: 342, height: 24, textAlign: 'left', fontSize: 12 } },
-    p4: { tablet: { x: 656, y: 14, width: 80, height: 36 }, phone: { x: 286, y: 16, width: 80, height: 36 } },
-    p5: { tablet: { x: 40, y: 112, width: 220, height: 24 }, phone: { x: 24, y: 150, width: 240, height: 24 } },
-    p6: { tablet: { x: 40, y: 146, width: 620, height: 144, fontSize: 48 }, phone: { x: 24, y: 184, width: 342, height: 132, fontSize: 38, lineHeight: 1.12 } },
-    p7: { tablet: { x: 40, y: 318, width: 520, height: 56 }, phone: { x: 24, y: 340, width: 342, height: 78, fontSize: 15 } },
-    p8: { tablet: { x: 40, y: 410, width: 164, height: 50 }, phone: { x: 24, y: 452, width: 342, height: 50 } },
-    p9: { tablet: { x: 216, y: 410, width: 148, height: 50 }, phone: { x: 24, y: 516, width: 342, height: 50 } },
-    p11: { tablet: { x: 0, y: 540, width: 768, height: 100 }, phone: { x: 0, y: 610, width: 390, height: 260 } },
-    p12: { tablet: { x: 64, y: 558, width: 180, height: 40 }, phone: { x: 24, y: 634, width: 342, height: 34, fontSize: 24 } },
-    p13: { tablet: { x: 64, y: 598, width: 180, height: 24 }, phone: { x: 24, y: 670, width: 342, height: 22 } },
-    p14: { tablet: { x: 294, y: 558, width: 190, height: 40 }, phone: { x: 24, y: 716, width: 342, height: 34, fontSize: 24 } },
-    p15: { tablet: { x: 294, y: 598, width: 190, height: 24 }, phone: { x: 24, y: 752, width: 342, height: 22 } },
-    p16: { tablet: { x: 524, y: 558, width: 190, height: 40 }, phone: { x: 24, y: 798, width: 342, height: 34, fontSize: 24 } },
-    p17: { tablet: { x: 524, y: 598, width: 190, height: 24 }, phone: { x: 24, y: 834, width: 342, height: 22 } },
-    p18: { tablet: { x: 40, y: 700, width: 300, height: 48, fontSize: 34 }, phone: { x: 24, y: 920, width: 342, height: 42, fontSize: 32 } },
-    p19: { tablet: { x: 488, y: 714, width: 240, height: 24 }, phone: { x: 24, y: 970, width: 342, height: 24, textAlign: 'left' } },
-    p20: { tablet: { x: 40, y: 780, width: 328, height: 230 }, phone: { x: 24, y: 1024, width: 342, height: 220 } },
-    p21: { tablet: { x: 40, y: 1024, width: 200, height: 20 }, phone: { x: 24, y: 1260, width: 260, height: 20 } },
-    p22: { tablet: { x: 40, y: 1048, width: 328, height: 32, fontSize: 18 }, phone: { x: 24, y: 1286, width: 342, height: 32, fontSize: 19 } },
-    p23: { tablet: { x: 400, y: 780, width: 328, height: 230 }, phone: { x: 24, y: 1360, width: 342, height: 220 } },
-    p24: { tablet: { x: 400, y: 1024, width: 200, height: 20 }, phone: { x: 24, y: 1596, width: 260, height: 20 } },
-    p25: { tablet: { x: 400, y: 1048, width: 328, height: 32, fontSize: 18 }, phone: { x: 24, y: 1622, width: 342, height: 32, fontSize: 19 } },
-    p26: { tablet: { x: 40, y: 1136, width: 688, height: 2 }, phone: { x: 24, y: 1710, width: 342, height: 2 } },
-    p27: { tablet: { x: 40, y: 1160, width: 330, height: 24 }, phone: { x: 24, y: 1734, width: 342, height: 24, fontSize: 12 } },
-    p28: { tablet: { x: 420, y: 1160, width: 308, height: 24 }, phone: { x: 24, y: 1770, width: 342, height: 24, textAlign: 'left', fontSize: 12 } },
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// Re-exports — so callers can import helpers directly from template.js
+// ─────────────────────────────────────────────────────────────────────────────
+export { isArtDecoTemplate, applyArtDecoTheme, getArtDecoCanvasFill }
+export { isBoldSummitTemplate, applyBoldSummitTheme, getBoldSummitCanvasFill }
+export { isNeuSummitTemplate, applyNeuSummitTheme, getNeuSummitCanvasFill }
+export { isPlayfulGeometricTemplate, applyPlayfulGeometricTheme, getPlayfulGeometricCanvasFill }
+export { isVaporWaveFestTemplate, applyVaporWaveFestTheme, getVaporWaveFestCanvasFill }
+export { isMinimalistMonochromeTemplate, applyMinimalistMonochromeTheme, getMinimalistMonochromeCanvasFill }
+export { isFlatDesignTemplate, applyFlatDesignTheme, getFlatDesignCanvasFill }
+export { isBotanicalOrganicTemplate, applyBotanicalOrganicTheme, getBotanicalOrganicCanvasFill }
 
-  return elements.map(element => ({
-    ...element,
-    breakpoints: {
-      ...(element.breakpoints ?? {}),
-      ...(breakpoints[element.id] ?? {}),
-    },
-  }))
-}
-
-function _makeAgencyResponsive(elements) {
-  const tablet = {
-    a1: { x: 0, y: 0, width: 768, height: 72 },
-    a2: { x: 32, y: 20, width: 160, height: 30, fontSize: 20 },
-    a3: { x: 300, y: 24, width: 280, height: 22, fontSize: 12 },
-    a4: { x: 624, y: 16, width: 112, height: 40 },
-    a5: { x: 40, y: 118, width: 300, height: 24 },
-    a6: { x: 40, y: 154, width: 620, height: 132, fontSize: 54 },
-    a7: { x: 40, y: 306, width: 520, height: 58, fontSize: 16 },
-    a8: { x: 40, y: 394, width: 160, height: 48 },
-    a9: { x: 212, y: 394, width: 142, height: 48 },
-    a10: { x: 440, y: 396, width: 288, height: 178 },
-    a11: { x: 482, y: 430, width: 130, height: 86 },
-    a12: { x: 624, y: 430, width: 70, height: 86 },
-    a13: { x: 0, y: 632, width: 768, height: 120 },
-    a14: { x: 40, y: 656, width: 150, height: 36, fontSize: 30 },
-    a15: { x: 40, y: 696, width: 150, height: 22 },
-    a16: { x: 220, y: 656, width: 150, height: 36, fontSize: 30 },
-    a17: { x: 220, y: 696, width: 150, height: 22 },
-    a18: { x: 400, y: 656, width: 150, height: 36, fontSize: 30 },
-    a19: { x: 400, y: 696, width: 150, height: 22 },
-    a20: { x: 580, y: 656, width: 140, height: 36, fontSize: 30 },
-    a21: { x: 580, y: 696, width: 140, height: 22 },
-    a22: { x: 40, y: 824, width: 180, height: 22 },
-    a23: { x: 40, y: 852, width: 420, height: 48, fontSize: 38 },
-    a24: { x: 40, y: 932, width: 328, height: 196 },
-    a25: { x: 68, y: 960, width: 260, height: 30 },
-    a26: { x: 68, y: 1004, width: 252, height: 70 },
-    a27: { x: 400, y: 932, width: 328, height: 196 },
-    a28: { x: 428, y: 960, width: 260, height: 30 },
-    a29: { x: 428, y: 1004, width: 252, height: 70 },
-    a30: { x: 40, y: 1152, width: 328, height: 196 },
-    a31: { x: 68, y: 1180, width: 260, height: 30 },
-    a32: { x: 68, y: 1224, width: 252, height: 70 },
-    a33: { x: 400, y: 1152, width: 328, height: 196 },
-    a34: { x: 428, y: 1180, width: 260, height: 30 },
-    a35: { x: 428, y: 1224, width: 252, height: 70 },
-    a36: { x: 40, y: 1420, width: 220, height: 22 },
-    a37: { x: 40, y: 1448, width: 430, height: 48, fontSize: 38 },
-    a38: { x: 548, y: 1460, width: 180, height: 22 },
-    a39: { x: 40, y: 1532, width: 430, height: 300 },
-    a40: { x: 68, y: 1808, width: 260, height: 18 },
-    a41: { x: 68, y: 1834, width: 360, height: 34, fontSize: 22 },
-    a42: { x: 500, y: 1532, width: 228, height: 140 },
-    a43: { x: 500, y: 1704, width: 228, height: 140 },
-    a44: { x: 40, y: 1940, width: 688, height: 180 },
-    a45: { x: 72, y: 1976, width: 160, height: 22 },
-    a46: { x: 72, y: 2010, width: 560, height: 58, fontSize: 30 },
-    a47: { x: 0, y: 2190, width: 768, height: 240 },
-    a48: { x: 64, y: 2238, width: 640, height: 64, fontSize: 36 },
-    a49: { x: 64, y: 2326, width: 170, height: 48 },
-    a50: { x: 248, y: 2326, width: 150, height: 48 },
-    a51: { x: 40, y: 2478, width: 688, height: 1 },
-    a52: { x: 40, y: 2504, width: 300, height: 22 },
-    a53: { x: 420, y: 2504, width: 308, height: 22 },
-  }
-
-  const phone = {
-    a1: { x: 0, y: 0, width: 390, height: 118 },
-    a2: { x: 24, y: 20, width: 150, height: 30, fontSize: 20 },
-    a3: { x: 24, y: 70, width: 342, height: 22, textAlign: 'left', fontSize: 12 },
-    a4: { x: 258, y: 16, width: 108, height: 38 },
-    a5: { x: 24, y: 150, width: 300, height: 22 },
-    a6: { x: 24, y: 184, width: 342, height: 136, fontSize: 42, lineHeight: 1.08 },
-    a7: { x: 24, y: 340, width: 342, height: 78, fontSize: 15 },
-    a8: { x: 24, y: 450, width: 342, height: 48 },
-    a9: { x: 24, y: 514, width: 342, height: 48 },
-    a10: { x: 24, y: 604, width: 342, height: 220 },
-    a11: { x: 48, y: 642, width: 156, height: 112 },
-    a12: { x: 222, y: 642, width: 96, height: 112 },
-    a13: { x: 0, y: 872, width: 390, height: 300 },
-    a14: { x: 24, y: 904, width: 150, height: 34, fontSize: 28 },
-    a15: { x: 24, y: 940, width: 150, height: 20 },
-    a16: { x: 216, y: 904, width: 150, height: 34, fontSize: 28 },
-    a17: { x: 216, y: 940, width: 150, height: 20 },
-    a18: { x: 24, y: 1010, width: 150, height: 34, fontSize: 28 },
-    a19: { x: 24, y: 1046, width: 150, height: 20 },
-    a20: { x: 216, y: 1010, width: 150, height: 34, fontSize: 28 },
-    a21: { x: 216, y: 1046, width: 150, height: 20 },
-    a22: { x: 24, y: 1242, width: 180, height: 22 },
-    a23: { x: 24, y: 1272, width: 342, height: 44, fontSize: 34 },
-    a24: { x: 24, y: 1352, width: 342, height: 186 },
-    a25: { x: 52, y: 1380, width: 280, height: 30 },
-    a26: { x: 52, y: 1424, width: 280, height: 72 },
-    a27: { x: 24, y: 1562, width: 342, height: 186 },
-    a28: { x: 52, y: 1590, width: 280, height: 30 },
-    a29: { x: 52, y: 1634, width: 280, height: 72 },
-    a30: { x: 24, y: 1772, width: 342, height: 186 },
-    a31: { x: 52, y: 1800, width: 280, height: 30 },
-    a32: { x: 52, y: 1844, width: 280, height: 72 },
-    a33: { x: 24, y: 1982, width: 342, height: 186 },
-    a34: { x: 52, y: 2010, width: 280, height: 30 },
-    a35: { x: 52, y: 2054, width: 280, height: 72 },
-    a36: { x: 24, y: 2242, width: 200, height: 22 },
-    a37: { x: 24, y: 2272, width: 342, height: 44, fontSize: 34 },
-    a38: { x: 24, y: 2330, width: 342, height: 22, textAlign: 'left' },
-    a39: { x: 24, y: 2388, width: 342, height: 230 },
-    a40: { x: 52, y: 2638, width: 260, height: 18 },
-    a41: { x: 52, y: 2664, width: 290, height: 34, fontSize: 20 },
-    a42: { x: 24, y: 2742, width: 342, height: 190 },
-    a43: { x: 24, y: 2960, width: 342, height: 190 },
-    a44: { x: 24, y: 3222, width: 342, height: 250 },
-    a45: { x: 52, y: 3260, width: 180, height: 22 },
-    a46: { x: 52, y: 3296, width: 286, height: 96, fontSize: 26 },
-    a47: { x: 0, y: 3540, width: 390, height: 300 },
-    a48: { x: 24, y: 3594, width: 342, height: 94, fontSize: 32 },
-    a49: { x: 24, y: 3718, width: 342, height: 48 },
-    a50: { x: 24, y: 3782, width: 342, height: 48 },
-    a51: { x: 24, y: 3896, width: 342, height: 1 },
-    a52: { x: 24, y: 3920, width: 342, height: 22, fontSize: 12 },
-    a53: { x: 24, y: 3954, width: 342, height: 22, textAlign: 'left', fontSize: 12 },
-  }
-
-  return elements.map(element => ({
-    ...element,
-    breakpoints: {
-      ...(element.breakpoints ?? {}),
-      tablet: tablet[element.id] ?? element.breakpoints?.tablet,
-      phone: phone[element.id] ?? element.breakpoints?.phone,
-      custom: tablet[element.id] ?? element.breakpoints?.custom,
-    },
-  }))
-}
-
+// ─────────────────────────────────────────────────────────────────────────────
+// TEMPLATES — single source of truth
+//
+// Every entry carries a `thumbnail` field sourced directly from
+// TEMPLATE_THUMBNAILS (inline SVG data URIs). This is the only place
+// thumbnails need to be wired — the gallery component reads template.thumbnail
+// and can use it as <img src> or CSS background-image without any extra logic.
+// ─────────────────────────────────────────────────────────────────────────────
 export const TEMPLATES = {
   blank: {
     name: 'Blank',
-    elements: []
+    description: 'Start from scratch',
+    elements: [],
+    thumbnail: null,
+    canvasSettings: {
+      width:  1200,
+      height: 900,
+      x: 0,
+      y: 0,
+      fill: '#ffffff',
+    },
   },
 
-  portfolio: {
-    name: 'Portfolio',
-    elements: makePortfolioResponsive([
-      { id: 'p1', type: 'container', x: 0, y: 0, width: 1200, height: 68, fill: '#ffffff', borderColor: '#E2E8F4', radius: 0, opacity: 100, breakpoints: { tablet: { x: 0, y: 0, width: 768, height: 68 }, phone: { x: 0, y: 0, width: 390, height: 120 } } },
-      { id: 'p2', type: 'heading', x: 48, y: 16, width: 180, height: 36, content: 'Alex Morgan', fontSize: 20, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100, breakpoints: { tablet: { x: 32, y: 16, width: 180, height: 36 }, phone: { x: 24, y: 18, width: 180, height: 32, fontSize: 20 } } },
-      { id: 'p3', type: 'paragraph', x: 780, y: 22, width: 320, height: 24, content: 'Work    About    Journal    Contact', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', textAlign: 'right', opacity: 100, breakpoints: { tablet: { x: 330, y: 22, width: 280, height: 24 }, phone: { x: 24, y: 72, width: 342, height: 24, textAlign: 'left', fontSize: 12 } } },
-      { id: 'p4', type: 'button', x: 1100, y: 14, width: 80, height: 36, content: 'Hire Me', fill: '#0F2348', textColor: '#ffffff', fontSize: 12, fontWeight: 600, fontFamily: 'Inter', radius: 20, opacity: 100, breakpoints: { tablet: { x: 656, y: 14, width: 80, height: 36 }, phone: { x: 286, y: 16, width: 80, height: 36 } } },
-      { id: 'p5', type: 'paragraph', x: 48, y: 120, width: 200, height: 24, content: '✦ AVAILABLE FOR WORK', fontSize: 11, fontWeight: 600, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1, opacity: 100 },
-      { id: 'p6', type: 'heading', x: 48, y: 152, width: 660, height: 180, content: 'Product Designer & Creative Developer', fontSize: 64, fontWeight: 700, fontFamily: 'Playfair Display', textColor: '#0F2348', lineHeight: 1.1, opacity: 100 },
-      { id: 'p7', type: 'paragraph', x: 48, y: 348, width: 480, height: 56, content: 'I help startups and brands craft memorable digital experiences. Based in San Francisco, working worldwide.', fontSize: 16, fontFamily: 'Inter', textColor: '#5E6F8E', lineHeight: 1.7, opacity: 100 },
-      { id: 'p8', type: 'button', x: 48, y: 428, width: 164, height: 50, content: 'View My Work →', fill: '#0F2348', textColor: '#ffffff', fontSize: 14, fontWeight: 600, fontFamily: 'Inter', radius: 28, opacity: 100 },
-      { id: 'p9', type: 'button', x: 224, y: 428, width: 148, height: 50, content: 'Download CV', fill: 'transparent', textColor: '#0F2348', borderColor: '#D8E1F0', fontSize: 14, fontWeight: 500, fontFamily: 'Inter', radius: 28, opacity: 100 },
-      { id: 'p11', type: 'container', x: 0, y: 560, width: 1200, height: 100, fill: '#F7F9FD', radius: 0, opacity: 100 },
-      { id: 'p12', type: 'heading', x: 120, y: 578, width: 200, height: 40, content: '5+ Years', fontSize: 28, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'p13', type: 'paragraph', x: 120, y: 618, width: 200, height: 24, content: 'Experience', fontSize: 13, fontFamily: 'Inter', textColor: '#8A9ABB', opacity: 100 },
-      { id: 'p14', type: 'heading', x: 400, y: 578, width: 200, height: 40, content: '40+ Projects', fontSize: 28, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'p15', type: 'paragraph', x: 400, y: 618, width: 200, height: 24, content: 'Completed', fontSize: 13, fontFamily: 'Inter', textColor: '#8A9ABB', opacity: 100 },
-      { id: 'p16', type: 'heading', x: 680, y: 578, width: 200, height: 40, content: '20+ Clients', fontSize: 28, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'p17', type: 'paragraph', x: 680, y: 618, width: 200, height: 24, content: 'Worldwide', fontSize: 13, fontFamily: 'Inter', textColor: '#8A9ABB', opacity: 100 },
-      { id: 'p18', type: 'heading', x: 48, y: 700, width: 300, height: 48, content: 'Selected Work', fontSize: 36, fontWeight: 700, fontFamily: 'Playfair Display', textColor: '#0F2348', opacity: 100 },
-      { id: 'p19', type: 'paragraph', x: 900, y: 716, width: 240, height: 24, content: 'View All Projects →', fontSize: 13, fontFamily: 'Inter', textColor: '#2348D7', textAlign: 'right', opacity: 100 },
-      { id: 'p20', type: 'image', x: 48, y: 768, width: 540, height: 320, fill: '#EEF3FF', radius: 16, opacity: 100 },
-      { id: 'p21', type: 'paragraph', x: 48, y: 1100, width: 200, height: 20, content: 'BRAND IDENTITY · 2024', fontSize: 10, fontWeight: 600, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1, opacity: 100 },
-      { id: 'p22', type: 'heading', x: 48, y: 1124, width: 540, height: 32, content: 'Luminary — Brand & Web', fontSize: 20, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'p23', type: 'image', x: 612, y: 768, width: 540, height: 320, fill: '#FFF0EE', radius: 16, opacity: 100 },
-      { id: 'p24', type: 'paragraph', x: 612, y: 1100, width: 200, height: 20, content: 'UI DESIGN · 2024', fontSize: 10, fontWeight: 600, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1, opacity: 100 },
-      { id: 'p25', type: 'heading', x: 612, y: 1124, width: 540, height: 32, content: 'Nova App — Mobile UI', fontSize: 20, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'p26', type: 'divider', x: 48, y: 1200, width: 1104, height: 2, fill: '#E2E8F4', opacity: 100 },
-      { id: 'p27', type: 'paragraph', x: 48, y: 1220, width: 400, height: 24, content: '© 2024 Alex Morgan. All rights reserved.', fontSize: 13, fontFamily: 'Inter', textColor: '#AAB8D4', opacity: 100 },
-      { id: 'p28', type: 'paragraph', x: 800, y: 1220, width: 352, height: 24, content: 'Twitter    Dribbble    LinkedIn    Email', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', textAlign: 'right', opacity: 100 },
-    ])
+  techSummitTemplate1: {
+    name: 'TechSummit Template 1',
+    description: 'Editable tech conference landing page',
+    elements: techSummitElements,
+    thumbnail: TEMPLATE_THUMBNAILS.techSummitTemplate1,
+    canvasSettings: {
+      width:  1200,
+      height: 2768,
+      x: 0,
+      y: 0,
+      fill: '#F8FAFF',
+    },
   },
 
-  landing: {
-    name: 'Landing Page',
-elements: withPhoneOverrides([
-      { id: 'l1', type: 'container', x: 0, y: 0, width: 1200, height: 68, fill: '#ffffff', borderColor: '#E2E8F4', radius: 0, opacity: 100 },
-      { id: 'l2', type: 'heading', x: 48, y: 16, width: 140, height: 36, content: 'Flowly', fontSize: 22, fontWeight: 700, fontFamily: 'Poppins', textColor: '#2348D7', opacity: 100 },
-      { id: 'l3', type: 'paragraph', x: 440, y: 22, width: 400, height: 24, content: 'Features    Pricing    About    Blog', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', textAlign: 'center', opacity: 100 },
-      { id: 'l4', type: 'button', x: 1000, y: 14, width: 120, height: 38, content: 'Get Started', fill: '#2348D7', textColor: '#ffffff', fontSize: 13, fontWeight: 600, fontFamily: 'Inter', radius: 10, opacity: 100 },
-      { id: 'l5', type: 'button', x: 872, y: 14, width: 116, height: 38, content: 'Sign In', fill: 'transparent', textColor: '#5E6F8E', borderColor: '#E2E8F4', fontSize: 13, fontFamily: 'Inter', radius: 10, opacity: 100 },
-      { id: 'l6', type: 'container', x: 0, y: 68, width: 1200, height: 520, fill: '#F7F9FD', radius: 0, opacity: 100 },
-      { id: 'l7', type: 'container', x: 400, y: 110, width: 400, height: 32, fill: '#EEF3FF', radius: 20, opacity: 100 },
-      { id: 'l8', type: 'paragraph', x: 400, y: 117, width: 400, height: 20, content: '🎉 Trusted by 10,000+ teams worldwide', fontSize: 12, fontWeight: 500, fontFamily: 'Inter', textColor: '#2348D7', textAlign: 'center', opacity: 100 },
-      { id: 'l9', type: 'heading', x: 100, y: 158, width: 1000, height: 160, content: 'Build better products,\nship faster.', fontSize: 68, fontWeight: 700, fontFamily: 'Poppins', textColor: '#0F2348', textAlign: 'center', lineHeight: 1.1, opacity: 100 },
-      { id: 'l10', type: 'paragraph', x: 280, y: 328, width: 640, height: 52, content: 'Flowly helps product teams collaborate, design, and ship incredible experiences — all in one place.', fontSize: 18, fontFamily: 'Inter', textColor: '#5E6F8E', textAlign: 'center', lineHeight: 1.6, opacity: 100 },
-      { id: 'l11', type: 'button', x: 396, y: 406, width: 188, height: 52, content: 'Start for Free →', fill: '#2348D7', textColor: '#ffffff', fontSize: 16, fontWeight: 600, fontFamily: 'Inter', radius: 12, opacity: 100 },
-      { id: 'l12', type: 'button', x: 596, y: 406, width: 188, height: 52, content: 'Watch Demo ▶', fill: '#ffffff', textColor: '#0F2348', borderColor: '#D8E1F0', fontSize: 16, fontFamily: 'Inter', radius: 12, opacity: 100 },
-      { id: 'l13', type: 'paragraph', x: 400, y: 476, width: 400, height: 24, content: 'Free 14-day trial · No credit card required', fontSize: 12, fontFamily: 'Inter', textColor: '#AAB8D4', textAlign: 'center', opacity: 100 },
-      { id: 'l14', type: 'image', x: 100, y: 600, width: 1000, height: 440, fill: '#EEF3FF', radius: 20, opacity: 100 },
-      { id: 'l15', type: 'paragraph', x: 500, y: 1080, width: 200, height: 24, content: 'FEATURES', fontSize: 11, fontWeight: 700, fontFamily: 'Inter', textColor: '#2348D7', textAlign: 'center', letterSpacing: 2, opacity: 100 },
-      { id: 'l16', type: 'heading', x: 200, y: 1108, width: 800, height: 60, content: 'Everything your team needs', fontSize: 42, fontWeight: 700, fontFamily: 'Poppins', textColor: '#0F2348', textAlign: 'center', opacity: 100 },
-      { id: 'l17', type: 'container', x: 48, y: 1196, width: 352, height: 200, fill: '#ffffff', borderColor: '#E2E8F4', radius: 20, opacity: 100 },
-      { id: 'l18', type: 'heading', x: 76, y: 1224, width: 296, height: 36, content: '⚡ Fast by default', fontSize: 20, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'l19', type: 'paragraph', x: 76, y: 1264, width: 296, height: 80, content: 'Built on modern infrastructure that scales automatically with your team.', fontSize: 14, fontFamily: 'Inter', textColor: '#5E6F8E', lineHeight: 1.6, opacity: 100 },
-      { id: 'l20', type: 'container', x: 424, y: 1196, width: 352, height: 200, fill: '#ffffff', borderColor: '#E2E8F4', radius: 20, opacity: 100 },
-      { id: 'l21', type: 'heading', x: 452, y: 1224, width: 296, height: 36, content: '🎨 Beautiful UI', fontSize: 20, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'l22', type: 'paragraph', x: 452, y: 1264, width: 296, height: 80, content: 'Professionally crafted components that look great on every device.', fontSize: 14, fontFamily: 'Inter', textColor: '#5E6F8E', lineHeight: 1.6, opacity: 100 },
-      { id: 'l23', type: 'container', x: 800, y: 1196, width: 352, height: 200, fill: '#ffffff', borderColor: '#E2E8F4', radius: 20, opacity: 100 },
-      { id: 'l24', type: 'heading', x: 828, y: 1224, width: 296, height: 36, content: '🔒 Secure always', fontSize: 20, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'l25', type: 'paragraph', x: 828, y: 1264, width: 296, height: 80, content: 'Enterprise grade security with SOC2 compliance and 99.9% uptime SLA.', fontSize: 14, fontFamily: 'Inter', textColor: '#5E6F8E', lineHeight: 1.6, opacity: 100 },
-      { id: 'l26', type: 'paragraph', x: 540, y: 1436, width: 120, height: 24, content: 'PRICING', fontSize: 11, fontWeight: 700, fontFamily: 'Inter', textColor: '#2348D7', textAlign: 'center', letterSpacing: 2, opacity: 100 },
-      { id: 'l27', type: 'heading', x: 300, y: 1464, width: 600, height: 56, content: 'Simple, honest pricing', fontSize: 40, fontWeight: 700, fontFamily: 'Poppins', textColor: '#0F2348', textAlign: 'center', opacity: 100 },
-      { id: 'l28', type: 'container', x: 148, y: 1548, width: 400, height: 300, fill: '#F7F9FD', borderColor: '#E2E8F4', radius: 24, opacity: 100 },
-      { id: 'l29', type: 'heading', x: 196, y: 1576, width: 300, height: 36, content: 'Free', fontSize: 24, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'l30', type: 'heading', x: 196, y: 1620, width: 300, height: 52, content: '$0 / month', fontSize: 36, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'l31', type: 'paragraph', x: 196, y: 1680, width: 300, height: 80, content: '✓ Up to 3 projects\n✓ Basic analytics\n✓ Community support', fontSize: 14, fontFamily: 'Inter', textColor: '#5E6F8E', lineHeight: 1.8, opacity: 100 },
-      { id: 'l32', type: 'button', x: 196, y: 1780, width: 300, height: 44, content: 'Get Started Free', fill: '#ffffff', textColor: '#0F2348', borderColor: '#D8E1F0', fontSize: 14, fontWeight: 600, fontFamily: 'Inter', radius: 12, opacity: 100 },
-      { id: 'l33', type: 'container', x: 652, y: 1528, width: 400, height: 340, fill: '#2348D7', radius: 24, opacity: 100 },
-      { id: 'l34', type: 'heading', x: 700, y: 1556, width: 300, height: 36, content: 'Pro', fontSize: 24, fontWeight: 700, fontFamily: 'Inter', textColor: '#ffffff', opacity: 100 },
-      { id: 'l35', type: 'paragraph', x: 700, y: 1588, width: 200, height: 24, content: 'Most Popular ⭐', fontSize: 11, fontWeight: 600, fontFamily: 'Inter', textColor: 'rgba(255,255,255,0.7)', opacity: 100 },
-      { id: 'l36', type: 'heading', x: 700, y: 1620, width: 300, height: 52, content: '$29 / month', fontSize: 36, fontWeight: 700, fontFamily: 'Inter', textColor: '#ffffff', opacity: 100 },
-      { id: 'l37', type: 'paragraph', x: 700, y: 1680, width: 300, height: 80, content: '✓ Unlimited projects\n✓ Advanced analytics\n✓ Priority support', fontSize: 14, fontFamily: 'Inter', textColor: 'rgba(255,255,255,0.8)', lineHeight: 1.8, opacity: 100 },
-      { id: 'l38', type: 'button', x: 700, y: 1796, width: 300, height: 44, content: 'Start Free Trial', fill: '#ffffff', textColor: '#2348D7', fontSize: 14, fontWeight: 700, fontFamily: 'Inter', radius: 12, opacity: 100 },
-      { id: 'l39', type: 'container', x: 0, y: 1916, width: 1200, height: 200, fill: '#0F2348', radius: 0, opacity: 100 },
-      { id: 'l40', type: 'heading', x: 200, y: 1948, width: 800, height: 60, content: 'Ready to build something great?', fontSize: 40, fontWeight: 700, fontFamily: 'Poppins', textColor: '#ffffff', textAlign: 'center', opacity: 100 },
-      { id: 'l41', type: 'button', x: 460, y: 2024, width: 280, height: 52, content: 'Start Building for Free →', fill: '#2348D7', textColor: '#ffffff', fontSize: 15, fontWeight: 600, fontFamily: 'Inter', radius: 12, opacity: 100 },
-    ], LANDING_PHONE)
+  artDecoGala: {
+    name: 'Gatsby Gala – Art Deco',
+    description: "Luxury New Year's Eve gala event landing page",
+    elements: artDecoElements,
+    thumbnail: TEMPLATE_THUMBNAILS.artDecoGala,
+    canvasSettings: {
+      width:  1200,
+      height: 2820,
+      x: 0,
+      y: 0,
+      fill: '#FAF7EF',
+    },
   },
 
-  blog: {
-    name: 'Blog',
-    elements: withPhoneOverrides([
-      { id: 'b1', type: 'container', x: 0, y: 0, width: 1200, height: 68, fill: '#ffffff', borderColor: '#E2E8F4', radius: 0, opacity: 100 },
-      { id: 'b2', type: 'heading', x: 48, y: 16, width: 240, height: 36, content: 'The Creative Brief', fontSize: 22, fontWeight: 700, fontFamily: 'Playfair Display', textColor: '#0F2348', opacity: 100 },
-      { id: 'b3', type: 'paragraph', x: 400, y: 22, width: 400, height: 24, content: 'Design    Technology    Culture    Life', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', textAlign: 'center', opacity: 100 },
-      { id: 'b4', type: 'button', x: 1060, y: 14, width: 92, height: 38, content: 'Subscribe', fill: '#0F2348', textColor: '#ffffff', fontSize: 12, fontWeight: 600, fontFamily: 'Inter', radius: 10, opacity: 100 },
-      { id: 'b5', type: 'divider', x: 0, y: 68, width: 1200, height: 2, fill: '#E2E8F4', opacity: 100 },
-      { id: 'b6', type: 'image', x: 48, y: 96, width: 640, height: 400, fill: '#EEF3FF', radius: 16, opacity: 100 },
-      { id: 'b7', type: 'container', x: 48, y: 96, width: 120, height: 30, fill: '#2348D7', radius: 6, opacity: 100 },
-      { id: 'b8', type: 'paragraph', x: 56, y: 104, width: 104, height: 20, content: 'FEATURED', fontSize: 10, fontWeight: 700, fontFamily: 'Inter', textColor: '#ffffff', textAlign: 'center', letterSpacing: 1, opacity: 100 },
-      { id: 'b9', type: 'paragraph', x: 48, y: 514, width: 300, height: 20, content: 'DESIGN THINKING · 8 MIN READ', fontSize: 10, fontWeight: 600, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1.5, opacity: 100 },
-      { id: 'b10', type: 'heading', x: 48, y: 540, width: 640, height: 100, content: 'The Art of Designing for Humans First', fontSize: 38, fontWeight: 700, fontFamily: 'Playfair Display', textColor: '#0F2348', lineHeight: 1.2, opacity: 100 },
-      { id: 'b11', type: 'paragraph', x: 48, y: 648, width: 580, height: 48, content: 'Great design starts with empathy. Here\'s how to put people at the center of every decision you make.', fontSize: 15, fontFamily: 'Inter', textColor: '#5E6F8E', lineHeight: 1.6, opacity: 100 },
-      { id: 'b12', type: 'paragraph', x: 48, y: 706, width: 200, height: 24, content: 'By Sarah Chen · Apr 12', fontSize: 12, fontFamily: 'Inter', textColor: '#AAB8D4', opacity: 100 },
-      { id: 'b13', type: 'heading', x: 730, y: 96, width: 420, height: 32, content: 'Latest Stories', fontSize: 20, fontWeight: 700, fontFamily: 'Playfair Display', textColor: '#0F2348', opacity: 100 },
-      { id: 'b14', type: 'divider', x: 730, y: 136, width: 420, height: 1, fill: '#E2E8F4', opacity: 100 },
-      { id: 'b15', type: 'image', x: 730, y: 152, width: 100, height: 72, fill: '#FFF0EE', radius: 10, opacity: 100 },
-      { id: 'b16', type: 'paragraph', x: 844, y: 154, width: 306, height: 16, content: 'TECHNOLOGY', fontSize: 9, fontWeight: 700, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1.5, opacity: 100 },
-      { id: 'b17', type: 'heading', x: 844, y: 174, width: 306, height: 40, content: 'How AI is changing the way we write code', fontSize: 14, fontWeight: 600, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'b18', type: 'paragraph', x: 844, y: 216, width: 306, height: 20, content: 'Apr 10 · 5 min read', fontSize: 11, fontFamily: 'Inter', textColor: '#AAB8D4', opacity: 100 },
-      { id: 'b19', type: 'divider', x: 730, y: 240, width: 420, height: 1, fill: '#F3F6FB', opacity: 100 },
-      { id: 'b20', type: 'image', x: 730, y: 256, width: 100, height: 72, fill: '#EEF3FF', radius: 10, opacity: 100 },
-      { id: 'b21', type: 'paragraph', x: 844, y: 258, width: 306, height: 16, content: 'CULTURE', fontSize: 9, fontWeight: 700, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1.5, opacity: 100 },
-      { id: 'b22', type: 'heading', x: 844, y: 278, width: 306, height: 40, content: 'Why remote work is the future of creativity', fontSize: 14, fontWeight: 600, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'b23', type: 'paragraph', x: 844, y: 320, width: 306, height: 20, content: 'Apr 8 · 4 min read', fontSize: 11, fontFamily: 'Inter', textColor: '#AAB8D4', opacity: 100 },
-      { id: 'b24', type: 'divider', x: 730, y: 344, width: 420, height: 1, fill: '#F3F6FB', opacity: 100 },
-      { id: 'b25', type: 'image', x: 730, y: 360, width: 100, height: 72, fill: '#F0FFF4', radius: 10, opacity: 100 },
-      { id: 'b26', type: 'paragraph', x: 844, y: 362, width: 306, height: 16, content: 'LIFE', fontSize: 9, fontWeight: 700, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1.5, opacity: 100 },
-      { id: 'b27', type: 'heading', x: 844, y: 382, width: 306, height: 40, content: 'Finding balance in a world that never stops', fontSize: 14, fontWeight: 600, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'b28', type: 'paragraph', x: 844, y: 424, width: 306, height: 20, content: 'Apr 5 · 6 min read', fontSize: 11, fontFamily: 'Inter', textColor: '#AAB8D4', opacity: 100 },
-      { id: 'b29', type: 'container', x: 730, y: 468, width: 420, height: 172, fill: '#F7F9FD', borderColor: '#E2E8F4', radius: 16, opacity: 100 },
-      { id: 'b30', type: 'heading', x: 758, y: 490, width: 360, height: 32, content: 'Stay in the loop ✉️', fontSize: 18, fontWeight: 700, fontFamily: 'Playfair Display', textColor: '#0F2348', opacity: 100 },
-      { id: 'b31', type: 'paragraph', x: 758, y: 526, width: 360, height: 24, content: 'Get the best stories delivered to your inbox.', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', opacity: 100 },
-      { id: 'b32', type: 'input', x: 758, y: 560, width: 240, height: 40, content: 'Enter your email', fill: '#ffffff', borderColor: '#D8E1F0', radius: 8, opacity: 100 },
-      { id: 'b33', type: 'button', x: 1008, y: 560, width: 104, height: 40, content: 'Subscribe', fill: '#2348D7', textColor: '#ffffff', fontSize: 13, fontWeight: 600, fontFamily: 'Inter', radius: 8, opacity: 100 },
-      { id: 'b34', type: 'heading', x: 48, y: 780, width: 400, height: 44, content: 'More Stories', fontSize: 32, fontWeight: 700, fontFamily: 'Playfair Display', textColor: '#0F2348', opacity: 100 },
-      { id: 'b35', type: 'paragraph', x: 900, y: 796, width: 252, height: 24, content: 'View All Articles →', fontSize: 13, fontFamily: 'Inter', textColor: '#2348D7', textAlign: 'right', opacity: 100 },
-      { id: 'b36', type: 'image', x: 48, y: 844, width: 356, height: 220, fill: '#F3F6FB', radius: 14, opacity: 100 },
-      { id: 'b37', type: 'paragraph', x: 48, y: 1076, width: 200, height: 18, content: 'DESIGN · 3 MIN', fontSize: 9, fontWeight: 700, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1.5, opacity: 100 },
-      { id: 'b38', type: 'heading', x: 48, y: 1098, width: 356, height: 48, content: 'Color theory every designer must know', fontSize: 18, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'b39', type: 'image', x: 422, y: 844, width: 356, height: 220, fill: '#EEF3FF', radius: 14, opacity: 100 },
-      { id: 'b40', type: 'paragraph', x: 422, y: 1076, width: 200, height: 18, content: 'TECH · 4 MIN', fontSize: 9, fontWeight: 700, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1.5, opacity: 100 },
-      { id: 'b41', type: 'heading', x: 422, y: 1098, width: 356, height: 48, content: 'Building a design system from scratch', fontSize: 18, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'b42', type: 'image', x: 796, y: 844, width: 356, height: 220, fill: '#FFF0EE', radius: 14, opacity: 100 },
-      { id: 'b43', type: 'paragraph', x: 796, y: 1076, width: 200, height: 18, content: 'LIFE · 5 MIN', fontSize: 9, fontWeight: 700, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1.5, opacity: 100 },
-      { id: 'b44', type: 'heading', x: 796, y: 1098, width: 356, height: 48, content: 'The morning habits of great designers', fontSize: 18, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'b45', type: 'divider', x: 48, y: 1180, width: 1104, height: 1, fill: '#E2E8F4', opacity: 100 },
-      { id: 'b46', type: 'paragraph', x: 48, y: 1200, width: 400, height: 24, content: '© 2024 The Creative Brief', fontSize: 13, fontFamily: 'Inter', textColor: '#AAB8D4', opacity: 100 },
-      { id: 'b47', type: 'paragraph', x: 800, y: 1200, width: 352, height: 24, content: 'Twitter    Instagram    RSS    Contact', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', textAlign: 'right', opacity: 100 },
-    ], BLOG_PHONE)
+  boldSummitTemplate: {
+    name: 'DesignConf – Bold Typography',
+    description: 'Editorial design conference landing page',
+    elements: withResponsive(boldSummitElements),
+    thumbnail: TEMPLATE_THUMBNAILS.boldSummitTemplate,
+    canvasSettings: {
+      width:  1200,
+      height: 3952,
+      x: 0,
+      y: 0,
+      fill: '#FAFAFA',
+    },
+    supportsTheme: true,
+    defaultTheme:  'light',
+    themeApplyFn:  applyBoldSummitTheme,
+    canvasFillFn:  getBoldSummitCanvasFill,
   },
 
-  agencyLegacy: {
-    name: 'Agency',
-    elements: makePortfolioResponsive([
-      { id: 'a1', type: 'container', x: 0, y: 0, width: 1200, height: 68, fill: '#ffffff', borderColor: '#E2E8F4', radius: 0, opacity: 100 },
-      { id: 'a2', type: 'heading', x: 48, y: 16, width: 180, height: 36, content: 'Studio.co', fontSize: 22, fontWeight: 700, fontFamily: 'Poppins', textColor: '#0F2348', opacity: 100 },
-      { id: 'a3', type: 'paragraph', x: 440, y: 22, width: 400, height: 24, content: 'Work    Services    About    Careers', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', textAlign: 'center', opacity: 100 },
-      { id: 'a4', type: 'button', x: 1032, y: 14, width: 120, height: 38, content: 'Let\'s Talk →', fill: '#0F2348', textColor: '#ffffff', fontSize: 13, fontWeight: 600, fontFamily: 'Inter', radius: 10, opacity: 100 },
-      { id: 'a5', type: 'paragraph', x: 48, y: 110, width: 320, height: 24, content: '— AWARD WINNING CREATIVE STUDIO', fontSize: 11, fontWeight: 600, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 2, opacity: 100 },
-      { id: 'a6', type: 'heading', x: 48, y: 142, width: 900, height: 200, content: 'We craft brands that\npeople remember.', fontSize: 72, fontWeight: 700, fontFamily: 'Poppins', textColor: '#0F2348', lineHeight: 1.05, opacity: 100 },
-      { id: 'a7', type: 'paragraph', x: 48, y: 358, width: 480, height: 52, content: 'From strategy to execution, we help ambitious companies build brands that stand out in a crowded world.', fontSize: 16, fontFamily: 'Inter', textColor: '#5E6F8E', lineHeight: 1.7, opacity: 100 },
-      { id: 'a8', type: 'button', x: 48, y: 432, width: 180, height: 52, content: 'See Our Work →', fill: '#2348D7', textColor: '#ffffff', fontSize: 15, fontWeight: 600, fontFamily: 'Inter', radius: 12, opacity: 100 },
-      { id: 'a9', type: 'button', x: 242, y: 432, width: 180, height: 52, content: 'Our Process', fill: 'transparent', textColor: '#0F2348', borderColor: '#D8E1F0', fontSize: 15, fontFamily: 'Inter', radius: 12, opacity: 100 },
-      { id: 'a10', type: 'image', x: 720, y: 90, width: 440, height: 420, fill: '#EEF3FF', radius: 20, opacity: 100 },
-      { id: 'a11', type: 'container', x: 0, y: 540, width: 1200, height: 108, fill: '#F7F9FD', radius: 0, opacity: 100 },
-      { id: 'a12', type: 'heading', x: 80, y: 560, width: 220, height: 44, content: '120+', fontSize: 36, fontWeight: 700, fontFamily: 'Poppins', textColor: '#2348D7', opacity: 100 },
-      { id: 'a13', type: 'paragraph', x: 80, y: 604, width: 220, height: 24, content: 'Projects Delivered', fontSize: 13, fontFamily: 'Inter', textColor: '#8A9ABB', opacity: 100 },
-      { id: 'a14', type: 'heading', x: 380, y: 560, width: 220, height: 44, content: '8 Years', fontSize: 36, fontWeight: 700, fontFamily: 'Poppins', textColor: '#2348D7', opacity: 100 },
-      { id: 'a15', type: 'paragraph', x: 380, y: 604, width: 220, height: 24, content: 'In Business', fontSize: 13, fontFamily: 'Inter', textColor: '#8A9ABB', opacity: 100 },
-      { id: 'a16', type: 'heading', x: 680, y: 560, width: 220, height: 44, content: '98%', fontSize: 36, fontWeight: 700, fontFamily: 'Poppins', textColor: '#2348D7', opacity: 100 },
-      { id: 'a17', type: 'paragraph', x: 680, y: 604, width: 220, height: 24, content: 'Client Satisfaction', fontSize: 13, fontFamily: 'Inter', textColor: '#8A9ABB', opacity: 100 },
-      { id: 'a18', type: 'heading', x: 980, y: 560, width: 180, height: 44, content: '15+', fontSize: 36, fontWeight: 700, fontFamily: 'Poppins', textColor: '#2348D7', opacity: 100 },
-      { id: 'a19', type: 'paragraph', x: 980, y: 604, width: 180, height: 24, content: 'Awards Won', fontSize: 13, fontFamily: 'Inter', textColor: '#8A9ABB', opacity: 100 },
-      { id: 'a20', type: 'paragraph', x: 48, y: 692, width: 200, height: 24, content: 'WHAT WE DO', fontSize: 11, fontWeight: 700, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 2, opacity: 100 },
-      { id: 'a21', type: 'heading', x: 48, y: 720, width: 600, height: 60, content: 'Our Services', fontSize: 44, fontWeight: 700, fontFamily: 'Poppins', textColor: '#0F2348', opacity: 100 },
-      { id: 'a22', type: 'container', x: 48, y: 804, width: 260, height: 180, fill: '#ffffff', borderColor: '#E2E8F4', radius: 16, opacity: 100 },
-      { id: 'a23', type: 'heading', x: 72, y: 832, width: 210, height: 32, content: '01. Branding', fontSize: 20, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'a24', type: 'paragraph', x: 72, y: 868, width: 210, height: 80, content: 'Strategy, identity, voice and visual language that connects.', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', lineHeight: 1.6, opacity: 100 },
-      { id: 'a25', type: 'container', x: 328, y: 804, width: 260, height: 180, fill: '#ffffff', borderColor: '#E2E8F4', radius: 16, opacity: 100 },
-      { id: 'a26', type: 'heading', x: 352, y: 832, width: 210, height: 32, content: '02. Web Design', fontSize: 20, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'a27', type: 'paragraph', x: 352, y: 868, width: 210, height: 80, content: 'Beautiful, fast websites that convert visitors into customers.', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', lineHeight: 1.6, opacity: 100 },
-      { id: 'a28', type: 'container', x: 608, y: 804, width: 260, height: 180, fill: '#ffffff', borderColor: '#E2E8F4', radius: 16, opacity: 100 },
-      { id: 'a29', type: 'heading', x: 632, y: 832, width: 210, height: 32, content: '03. Motion', fontSize: 20, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'a30', type: 'paragraph', x: 632, y: 868, width: 210, height: 80, content: 'Animation and motion design that brings your brand to life.', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', lineHeight: 1.6, opacity: 100 },
-      { id: 'a31', type: 'container', x: 888, y: 804, width: 260, height: 180, fill: '#EEF3FF', borderColor: '#D8E8FF', radius: 16, opacity: 100 },
-      { id: 'a32', type: 'heading', x: 912, y: 832, width: 210, height: 32, content: '04. Strategy', fontSize: 20, fontWeight: 700, fontFamily: 'Inter', textColor: '#2348D7', opacity: 100 },
-      { id: 'a33', type: 'paragraph', x: 912, y: 868, width: 210, height: 80, content: 'Research-led strategy that aligns design with business goals.', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', lineHeight: 1.6, opacity: 100 },
-      { id: 'a34', type: 'paragraph', x: 48, y: 1028, width: 200, height: 24, content: 'SELECTED WORK', fontSize: 11, fontWeight: 700, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 2, opacity: 100 },
-      { id: 'a35', type: 'heading', x: 48, y: 1056, width: 500, height: 56, content: 'Recent Projects', fontSize: 44, fontWeight: 700, fontFamily: 'Poppins', textColor: '#0F2348', opacity: 100 },
-      { id: 'a36', type: 'paragraph', x: 900, y: 1076, width: 252, height: 24, content: 'View All Work →', fontSize: 13, fontFamily: 'Inter', textColor: '#2348D7', textAlign: 'right', opacity: 100 },
-      { id: 'a37', type: 'image', x: 48, y: 1132, width: 700, height: 360, fill: '#EEF3FF', radius: 20, opacity: 100 },
-      { id: 'a38', type: 'paragraph', x: 48, y: 1504, width: 300, height: 20, content: 'BRAND IDENTITY · WEB DESIGN', fontSize: 10, fontWeight: 600, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1.5, opacity: 100 },
-      { id: 'a39', type: 'heading', x: 48, y: 1528, width: 500, height: 36, content: 'Vertex — Fintech Rebrand', fontSize: 24, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'a40', type: 'image', x: 768, y: 1132, width: 384, height: 172, fill: '#FFF0EE', radius: 16, opacity: 100 },
-      { id: 'a41', type: 'paragraph', x: 768, y: 1316, width: 300, height: 18, content: 'MOTION DESIGN', fontSize: 10, fontWeight: 600, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1.5, opacity: 100 },
-      { id: 'a42', type: 'heading', x: 768, y: 1338, width: 384, height: 32, content: 'Bloom — App Launch', fontSize: 20, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'a43', type: 'image', x: 768, y: 1320, width: 384, height: 172, fill: '#F0FFF4', radius: 16, opacity: 100 },
-      { id: 'a44', type: 'paragraph', x: 768, y: 1504, width: 300, height: 18, content: 'WEB DESIGN', fontSize: 10, fontWeight: 600, fontFamily: 'Inter', textColor: '#2348D7', letterSpacing: 1.5, opacity: 100 },
-      { id: 'a45', type: 'heading', x: 768, y: 1526, width: 384, height: 32, content: 'Sage — E-commerce', fontSize: 20, fontWeight: 700, fontFamily: 'Inter', textColor: '#0F2348', opacity: 100 },
-      { id: 'a46', type: 'container', x: 0, y: 1600, width: 1200, height: 220, fill: '#0F2348', radius: 0, opacity: 100 },
-      { id: 'a47', type: 'heading', x: 100, y: 1636, width: 1000, height: 80, content: 'Ready to build something great together?', fontSize: 44, fontWeight: 700, fontFamily: 'Poppins', textColor: '#ffffff', textAlign: 'center', opacity: 100 },
-      { id: 'a48', type: 'button', x: 440, y: 1734, width: 200, height: 52, content: 'Start a Project →', fill: '#2348D7', textColor: '#ffffff', fontSize: 15, fontWeight: 600, fontFamily: 'Inter', radius: 12, opacity: 100 },
-      { id: 'a49', type: 'button', x: 656, y: 1734, width: 160, height: 52, content: 'See Pricing', fill: 'transparent', textColor: 'rgba(255,255,255,0.7)', borderColor: 'rgba(255,255,255,0.2)', fontSize: 15, fontFamily: 'Inter', radius: 12, opacity: 100 },
-      { id: 'a50', type: 'divider', x: 48, y: 1860, width: 1104, height: 1, fill: '#E2E8F4', opacity: 100 },
-      { id: 'a51', type: 'paragraph', x: 48, y: 1880, width: 400, height: 24, content: '© 2024 Studio.co · All rights reserved', fontSize: 13, fontFamily: 'Inter', textColor: '#AAB8D4', opacity: 100 },
-      { id: 'a52', type: 'paragraph', x: 800, y: 1880, width: 352, height: 24, content: 'Twitter    Instagram    LinkedIn    Dribbble', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', textAlign: 'right', opacity: 100 },
-    ])
+  neuSummitTemplate: {
+    name: 'NeuSummit – Soft UI Design Conference',
+    description: 'Premium neumorphic design-systems conference landing page',
+    elements: withResponsive(neuSummitElements),
+    thumbnail: TEMPLATE_THUMBNAILS.neuSummitTemplate,
+    canvasSettings: {
+      width:  1200,
+      height: 4480,
+      x: 0,
+      y: 0,
+      fill: '#E0E5EC',
+    },
+    supportsTheme: true,
+    defaultTheme:  'light',
+    themeApplyFn:  applyNeuSummitTheme,
+    canvasFillFn:  getNeuSummitCanvasFill,
   },
-// REPLACE the agency: block in src/utils/templates.js
-// Card layout math:
-//   Total usable width: x=100 to x=1100 = 1000px
-//   4 cards + 3 gaps of 20px = 4*235 + 3*20 = 940+60 = 1000 ✓
-//   Card width: 235px
-//   Text padding inside card: 20px each side
-//   Text x = card_x + 20
-//   Text width = 235 - 40 = 195px  (never bleeds into next card)
 
-  agency: {
-    name: 'Agency',
-    elements: withPhoneOverrides([
-      // ── NAVIGATION ──────────────────────────────────────────────────────────
-      { id: 'a1',  type: 'container', name: 'Navigation',      x: 0,    y: 0,    width: 1200, height: 72,  fill: '#ffffff', borderColor: '#E6ECF5', radius: 0, opacity: 100 },
-      { id: 'a2',  type: 'heading',   name: 'Logo',             x: 48,   y: 20,   width: 160,  height: 32,  content: 'Northline', fontSize: 22, fontWeight: 800, fontFamily: 'Inter', textColor: '#0B1F3A', opacity: 100 },
-      { id: 'a3',  type: 'paragraph', name: 'Nav Links',        x: 426,  y: 25,   width: 348,  height: 22,  content: 'Work     Services     Process     Contact', fontSize: 13, fontWeight: 500, fontFamily: 'Inter', textColor: '#5D6B82', textAlign: 'center', opacity: 100 },
-      { id: 'a4',  type: 'button',    name: 'Nav CTA',          x: 1026, y: 16,   width: 126,  height: 40,  content: "Let's talk", fill: '#0B1F3A', textColor: '#ffffff', fontSize: 13, fontWeight: 700, fontFamily: 'Inter', radius: 999, opacity: 100 },
+  playfulGeometricTemplate: {
+    name: 'PixelFest – Playful Geometric',
+    description: 'Design & creative tech festival landing page',
+    elements: withResponsive(playfulGeometricElements),
+    thumbnail: TEMPLATE_THUMBNAILS.playfulGeometricTemplate,
+    canvasSettings: {
+      width:  1200,
+      height: 4660,
+      x: 0,
+      y: 0,
+      fill: '#FFFDF5',
+    },
+    supportsTheme: true,
+    defaultTheme:  'light',
+    themeApplyFn:  applyPlayfulGeometricTheme,
+    canvasFillFn:  getPlayfulGeometricCanvasFill,
+  },
 
-      // ── HERO ─────────────────────────────────────────────────────────────────
-      { id: 'a5',  type: 'container', name: 'Hero BG',          x: 0,    y: 72,   width: 1200, height: 410, fill: '#F7FAFE', radius: 0, opacity: 100 },
-      { id: 'a6',  type: 'paragraph', name: 'Eyebrow',          x: 240,  y: 116,  width: 720,  height: 22,  content: 'INDEPENDENT BRAND AND PRODUCT STUDIO', fontSize: 11, fontWeight: 800, fontFamily: 'Inter', textColor: '#2563EB', letterSpacing: 2, textAlign: 'center', opacity: 100 },
-      { id: 'a7',  type: 'heading',   name: 'Hero Heading',     x: 80,   y: 150,  width: 1040, height: 140, content: 'We shape brands into digital products people trust.', fontSize: 58, fontWeight: 800, fontFamily: 'Inter', textColor: '#0B1F3A', lineHeight: 1.1, textAlign: 'center', opacity: 100 },
-      { id: 'a8',  type: 'paragraph', name: 'Hero Subtext',     x: 280,  y: 302,  width: 640,  height: 52,  content: 'Strategy, identity, web design, and launch systems for teams that need clarity before scale.', fontSize: 17, fontWeight: 400, fontFamily: 'Inter', textColor: '#607089', lineHeight: 1.65, textAlign: 'center', opacity: 100 },
-      { id: 'a9',  type: 'button',    name: 'Primary CTA',      x: 416,  y: 370,  width: 168,  height: 50,  content: 'See our work', fill: '#2563EB', textColor: '#ffffff', fontSize: 14, fontWeight: 800, fontFamily: 'Inter', radius: 999, opacity: 100 },
-      { id: 'a10', type: 'button',    name: 'Secondary CTA',    x: 596,  y: 370,  width: 148,  height: 50,  content: 'Our process', fill: '#ffffff', textColor: '#0B1F3A', borderColor: '#D7E0EE', fontSize: 14, fontWeight: 700, fontFamily: 'Inter', radius: 999, opacity: 100 },
+  vaporWaveFestTemplate: {
+    name: 'Neon Fest – Vaporwave',
+    description: 'Synthwave & retrowave music festival landing page',
+    elements: withResponsive(vaporWaveFestElements),
+    thumbnail: TEMPLATE_THUMBNAILS.vaporWaveFestTemplate,
+    canvasSettings: {
+      width:  1200,
+      height: 3872,
+      x: 0,
+      y: 0,
+      fill: '#090014',
+    },
+    supportsTheme: true,
+    defaultTheme:  'dark',
+    themeApplyFn:  applyVaporWaveFestTheme,
+    canvasFillFn:  getVaporWaveFestCanvasFill,
+  },
 
-      // ── HERO IMAGE ───────────────────────────────────────────────────────────
-      { id: 'a11', type: 'image',     name: 'Hero Image',       x: 100,  y: 500,  width: 1000, height: 460, fill: '#EDF4FF', borderColor: '#DCE8FF', radius: 24, opacity: 100 },
+  minimalistMonochromeTemplate: {
+    name: 'FORMA – Minimalist Monochrome',
+    description: 'High-end editorial design conference landing page',
+    elements: withResponsive(minimalistMonochromeElements),
+    thumbnail: TEMPLATE_THUMBNAILS.minimalistMonochromeTemplate,
+    canvasSettings: {
+      width:  1200,
+      height: 4114,
+      x: 0,
+      y: 0,
+      fill: '#FFFFFF',
+    },
+    supportsTheme: true,
+    defaultTheme:  'light',
+    themeApplyFn:  applyMinimalistMonochromeTheme,
+    canvasFillFn:  getMinimalistMonochromeCanvasFill,
+  },
 
-      // ── STATS BAND ───────────────────────────────────────────────────────────
-      { id: 'a12', type: 'container', name: 'Stats Band',       x: 0,    y: 1000, width: 1200, height: 120, fill: '#0B1F3A', radius: 0, opacity: 100 },
-      { id: 'a13', type: 'heading',   name: 'Stat 1 Num',       x: 120,  y: 1024, width: 190,  height: 42,  content: '120+', fontSize: 34, fontWeight: 800, fontFamily: 'Inter', textColor: '#60A5FA', opacity: 100 },
-      { id: 'a14', type: 'paragraph', name: 'Stat 1 Label',     x: 120,  y: 1068, width: 190,  height: 22,  content: 'Projects launched', fontSize: 13, fontFamily: 'Inter', textColor: '#8FB6FF', opacity: 100 },
-      { id: 'a15', type: 'heading',   name: 'Stat 2 Num',       x: 390,  y: 1024, width: 190,  height: 42,  content: '8 yrs', fontSize: 34, fontWeight: 800, fontFamily: 'Inter', textColor: '#60A5FA', opacity: 100 },
-      { id: 'a16', type: 'paragraph', name: 'Stat 2 Label',     x: 390,  y: 1068, width: 190,  height: 22,  content: 'In business', fontSize: 13, fontFamily: 'Inter', textColor: '#8FB6FF', opacity: 100 },
-      { id: 'a17', type: 'heading',   name: 'Stat 3 Num',       x: 660,  y: 1024, width: 190,  height: 42,  content: '98%', fontSize: 34, fontWeight: 800, fontFamily: 'Inter', textColor: '#60A5FA', opacity: 100 },
-      { id: 'a18', type: 'paragraph', name: 'Stat 3 Label',     x: 660,  y: 1068, width: 190,  height: 22,  content: 'Client retention', fontSize: 13, fontFamily: 'Inter', textColor: '#8FB6FF', opacity: 100 },
-      { id: 'a19', type: 'heading',   name: 'Stat 4 Num',       x: 930,  y: 1024, width: 190,  height: 42,  content: '15', fontSize: 34, fontWeight: 800, fontFamily: 'Inter', textColor: '#60A5FA', opacity: 100 },
-      { id: 'a20', type: 'paragraph', name: 'Stat 4 Label',     x: 930,  y: 1068, width: 190,  height: 22,  content: 'Awards won', fontSize: 13, fontFamily: 'Inter', textColor: '#8FB6FF', opacity: 100 },
+  flatDesignTemplate: {
+    name: 'LaunchPad – Flat Design',
+    description: 'Bold SaaS product landing page — zero shadows, pure colour',
+    elements: withResponsive(flatDesignElements),
+    thumbnail: TEMPLATE_THUMBNAILS.flatDesignTemplate,
+    canvasSettings: {
+      width:  1200,
+      height: 3622,
+      x: 0,
+      y: 0,
+      fill: '#FFFFFF',
+    },
+    supportsTheme: true,
+    defaultTheme:  'light',
+    themeApplyFn:  applyFlatDesignTheme,
+    canvasFillFn:  getFlatDesignCanvasFill,
+  },
 
-      // ── SERVICES ─────────────────────────────────────────────────────────────
-      // Section labels
-      { id: 'a21', type: 'paragraph', name: 'Services Label',   x: 100,  y: 1172, width: 220,  height: 22,  content: 'WHAT WE DO', fontSize: 11, fontWeight: 800, fontFamily: 'Inter', textColor: '#2563EB', letterSpacing: 2, opacity: 100 },
-      { id: 'a22', type: 'heading',   name: 'Services Heading', x: 100,  y: 1202, width: 600,  height: 52,  content: 'Services built for launch velocity.', fontSize: 40, fontWeight: 800, fontFamily: 'Inter', textColor: '#0B1F3A', lineHeight: 1.1, opacity: 100 },
-
-      // ── Card 1: x=100, width=235 → text x=120, width=195 ──
-      { id: 'a23', type: 'container', name: 'Card 1',           x: 100,  y: 1306, width: 235,  height: 220, fill: '#ffffff', borderColor: '#DDE6F3', radius: 16, opacity: 100 },
-      { id: 'a24', type: 'heading',   name: 'Card 1 Title',     x: 120,  y: 1326, width: 195,  height: 26,  content: '01. Brand Systems', fontSize: 14, fontWeight: 800, fontFamily: 'Inter', textColor: '#0B1F3A', opacity: 100 },
-      { id: 'a25', type: 'paragraph', name: 'Card 1 Copy',      x: 120,  y: 1360, width: 195,  height: 140, content: 'Positioning, voice, visual language, and identity kits that scale across every channel.', fontSize: 12, fontFamily: 'Inter', textColor: '#607089', lineHeight: 1.6, opacity: 100 },
-
-      // ── Card 2: x=355 (100+235+20), width=235 → text x=375, width=195 ──
-      { id: 'a26', type: 'container', name: 'Card 2',           x: 355,  y: 1306, width: 235,  height: 220, fill: '#ffffff', borderColor: '#DDE6F3', radius: 16, opacity: 100 },
-      { id: 'a27', type: 'heading',   name: 'Card 2 Title',     x: 375,  y: 1326, width: 195,  height: 26,  content: '02. Web Design', fontSize: 14, fontWeight: 800, fontFamily: 'Inter', textColor: '#0B1F3A', opacity: 100 },
-      { id: 'a28', type: 'paragraph', name: 'Card 2 Copy',      x: 375,  y: 1360, width: 195,  height: 140, content: 'High-converting sites with clear sections, crisp motion, and responsive production layouts.', fontSize: 12, fontFamily: 'Inter', textColor: '#607089', lineHeight: 1.6, opacity: 100 },
-
-      // ── Card 3: x=610 (355+235+20), width=235 → text x=630, width=195 ──
-      { id: 'a29', type: 'container', name: 'Card 3',           x: 610,  y: 1306, width: 235,  height: 220, fill: '#ffffff', borderColor: '#DDE6F3', radius: 16, opacity: 100 },
-      { id: 'a30', type: 'heading',   name: 'Card 3 Title',     x: 630,  y: 1326, width: 195,  height: 26,  content: '03. Product UI', fontSize: 14, fontWeight: 800, fontFamily: 'Inter', textColor: '#0B1F3A', opacity: 100 },
-      { id: 'a31', type: 'paragraph', name: 'Card 3 Copy',      x: 630,  y: 1360, width: 195,  height: 140, content: 'Design systems, onboarding flows, and polished interfaces for SaaS and product teams.', fontSize: 12, fontFamily: 'Inter', textColor: '#607089', lineHeight: 1.6, opacity: 100 },
-
-      // ── Card 4: x=865 (610+235+20), width=235 → text x=885, width=195 ──
-      { id: 'a32', type: 'container', name: 'Card 4',           x: 865,  y: 1306, width: 235,  height: 220, fill: '#EDF4FF', borderColor: '#CFE0FF', radius: 16, opacity: 100 },
-      { id: 'a33', type: 'heading',   name: 'Card 4 Title',     x: 885,  y: 1326, width: 195,  height: 26,  content: '04. Launch Ops', fontSize: 14, fontWeight: 800, fontFamily: 'Inter', textColor: '#2563EB', opacity: 100 },
-      { id: 'a34', type: 'paragraph', name: 'Card 4 Copy',      x: 885,  y: 1360, width: 195,  height: 140, content: 'Analytics, QA, CMS setup, and handoff systems so launch day feels calm.', fontSize: 12, fontFamily: 'Inter', textColor: '#607089', lineHeight: 1.6, opacity: 100 },
-
-      // ── SELECTED WORK ────────────────────────────────────────────────────────
-      { id: 'a35', type: 'paragraph', name: 'Work Label',       x: 100,  y: 1584, width: 220,  height: 22,  content: 'SELECTED WORK', fontSize: 11, fontWeight: 800, fontFamily: 'Inter', textColor: '#2563EB', letterSpacing: 2, opacity: 100 },
-      { id: 'a36', type: 'heading',   name: 'Work Heading',     x: 100,  y: 1614, width: 580,  height: 54,  content: 'Recent launches with measurable impact.', fontSize: 38, fontWeight: 800, fontFamily: 'Inter', textColor: '#0B1F3A', lineHeight: 1.12, opacity: 100 },
-      { id: 'a37', type: 'paragraph', name: 'View All',         x: 920,  y: 1632, width: 180,  height: 22,  content: 'View all work ->', fontSize: 13, fontWeight: 700, fontFamily: 'Inter', textColor: '#2563EB', textAlign: 'right', opacity: 100 },
-
-      // Featured project (left, large)
-      { id: 'a38', type: 'image',     name: 'Project 1 Image',  x: 100,  y: 1692, width: 680,  height: 360, fill: '#EDF4FF', borderColor: '#DCE8FF', radius: 20, opacity: 100 },
-      { id: 'a39', type: 'paragraph', name: 'P1 Tag',           x: 100,  y: 2064, width: 400,  height: 18,  content: 'BRAND IDENTITY / WEB DESIGN', fontSize: 10, fontWeight: 800, fontFamily: 'Inter', textColor: '#2563EB', letterSpacing: 1.4, opacity: 100 },
-      { id: 'a40', type: 'heading',   name: 'P1 Title',         x: 100,  y: 2086, width: 500,  height: 30,  content: 'Vertex — Fintech rebrand', fontSize: 20, fontWeight: 800, fontFamily: 'Inter', textColor: '#0B1F3A', opacity: 100 },
-
-      // Two small projects (right column)
-      { id: 'a41', type: 'image',     name: 'Project 2 Image',  x: 812,  y: 1692, width: 288,  height: 168, fill: '#FFF1EE', borderColor: '#FFE1DA', radius: 16, opacity: 100 },
-      { id: 'a42', type: 'paragraph', name: 'P2 Tag',           x: 812,  y: 1872, width: 288,  height: 18,  content: 'MOTION DESIGN', fontSize: 10, fontWeight: 800, fontFamily: 'Inter', textColor: '#2563EB', letterSpacing: 1.4, opacity: 100 },
-      { id: 'a43', type: 'heading',   name: 'P2 Title',         x: 812,  y: 1894, width: 288,  height: 26,  content: 'Bloom — App launch', fontSize: 16, fontWeight: 800, fontFamily: 'Inter', textColor: '#0B1F3A', opacity: 100 },
-
-      { id: 'a44', type: 'image',     name: 'Project 3 Image',  x: 812,  y: 1934, width: 288,  height: 118, fill: '#ECFDF3', borderColor: '#D8F7E5', radius: 16, opacity: 100 },
-      { id: 'a45', type: 'paragraph', name: 'P3 Tag',           x: 812,  y: 2064, width: 288,  height: 18,  content: 'E-COMMERCE', fontSize: 10, fontWeight: 800, fontFamily: 'Inter', textColor: '#2563EB', letterSpacing: 1.4, opacity: 100 },
-      { id: 'a46', type: 'heading',   name: 'P3 Title',         x: 812,  y: 2086, width: 288,  height: 26,  content: 'Sage — E-commerce', fontSize: 16, fontWeight: 800, fontFamily: 'Inter', textColor: '#0B1F3A', opacity: 100 },
-
-      // ── TESTIMONIAL ──────────────────────────────────────────────────────────
-      { id: 'a47', type: 'container', name: 'Testimonial BG',   x: 100,  y: 2172, width: 1000, height: 178, fill: '#0B1F3A', radius: 28, opacity: 100 },
-      { id: 'a48', type: 'paragraph', name: 'Quote Label',      x: 148,  y: 2206, width: 200,  height: 22,  content: 'CLIENT NOTE', fontSize: 11, fontWeight: 800, fontFamily: 'Inter', textColor: '#8FB6FF', letterSpacing: 2, opacity: 100 },
-      { id: 'a49', type: 'heading',   name: 'Quote Text',       x: 148,  y: 2232, width: 800,  height: 76,  content: '"Northline gave our brand a sharper story and a site our sales team can actually use."', fontSize: 25, fontWeight: 700, fontFamily: 'Inter', textColor: '#ffffff', lineHeight: 1.3, opacity: 100 },
-
-      // ── CTA BAND ─────────────────────────────────────────────────────────────
-      { id: 'a50', type: 'container', name: 'CTA BG',           x: 0,    y: 2406, width: 1200, height: 240, fill: '#F7FAFE', borderColor: '#EDF2FA', radius: 0, opacity: 100 },
-      { id: 'a51', type: 'heading',   name: 'CTA Heading',      x: 200,  y: 2446, width: 800,  height: 64,  content: 'Ready to build a brand people understand?', fontSize: 42, fontWeight: 800, fontFamily: 'Inter', textColor: '#0B1F3A', textAlign: 'center', opacity: 100 },
-      { id: 'a52', type: 'button',    name: 'CTA Primary',      x: 432,  y: 2536, width: 178,  height: 50,  content: 'Start a project', fill: '#2563EB', textColor: '#ffffff', fontSize: 14, fontWeight: 800, fontFamily: 'Inter', radius: 999, opacity: 100 },
-      { id: 'a53', type: 'button',    name: 'CTA Secondary',    x: 622,  y: 2536, width: 146,  height: 50,  content: 'See pricing', fill: '#ffffff', textColor: '#0B1F3A', borderColor: '#D7E0EE', fontSize: 14, fontWeight: 700, fontFamily: 'Inter', radius: 999, opacity: 100 },
-
-      // ── FOOTER ───────────────────────────────────────────────────────────────
-      { id: 'a54', type: 'divider',   name: 'Footer Divider',   x: 100,  y: 2696, width: 1000, height: 1,   fill: '#E2E8F4', opacity: 100 },
-      { id: 'a55', type: 'paragraph', name: 'Copyright',        x: 100,  y: 2716, width: 460,  height: 22,  content: '© 2026 Northline Studio. All rights reserved.', fontSize: 13, fontFamily: 'Inter', textColor: '#8A9ABB', opacity: 100 },
-      { id: 'a56', type: 'paragraph', name: 'Social Links',     x: 740,  y: 2716, width: 360,  height: 22,  content: 'Twitter     Instagram     LinkedIn     Dribbble', fontSize: 13, fontFamily: 'Inter', textColor: '#5E6F8E', textAlign: 'right', opacity: 100 },
-    ], {}, AGENCY_TABLET)
+  botanicalOrganicTemplate: {
+    name: 'Verdana – Botanical Organic',
+    description: 'Earthy wellness & spa brand — serif type, organic shapes',
+    elements: withResponsive(botanicalOrganicElements),
+    thumbnail: TEMPLATE_THUMBNAILS.botanicalOrganicTemplate,
+    canvasSettings: {
+      width:  1200,
+      height: 3980,
+      x: 0,
+      y: 0,
+      fill: '#F9F8F4',
+    },
+    supportsTheme: true,
+    defaultTheme:  'light',
+    themeApplyFn:  applyBotanicalOrganicTheme,
+    canvasFillFn:  getBotanicalOrganicCanvasFill,
   },
 }

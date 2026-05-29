@@ -1,19 +1,13 @@
 import { Database, Plus, Settings, Play, Users, Sparkles, RotateCcw, RotateCw, Download, Sun, Moon } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
-export default function CanvasTopbar({ onBack, onInsertClick, onUndo, onRedo, canUndo, canRedo, onPreview, onExport, projectName = 'My Project' }) {
+export default function CanvasTopbar({ onBack, onInsertClick, onUndo, onRedo, canUndo, canRedo, onPreview, onExport, onTemplateThemeToggle, projectName = 'My Project' }) {
   const [theme, setTheme] = useState('light')
-
-  useEffect(() => {
-    const saved = localStorage.getItem('vc-theme') || 'light'
-    setTheme(saved)
-  }, [])
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light'
     setTheme(newTheme)
-    document.documentElement.setAttribute('data-theme', newTheme)
-    localStorage.setItem('vc-theme', newTheme)
+    onTemplateThemeToggle?.(newTheme)
   }
   return (
     <div className="h-14 bg-white border-b border-[#D8E1F0] flex items-center justify-between gap-2 px-2 sm:px-4 shrink-0">

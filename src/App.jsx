@@ -21,6 +21,7 @@ const createProjectFromTemplate = (templateKey, overrides = {}) => {
     x: 0,
     y: 0,
     fill: '#ffffff',
+    ...(template.canvasSettings || {}),
   }
 
   return {
@@ -39,9 +40,9 @@ const createProjectFromTemplate = (templateKey, overrides = {}) => {
 }
 
 const initialProjects = [
-  createProjectFromTemplate('portfolio', {
+  createProjectFromTemplate('techSummitTemplate1', {
     id: 1,
-    name: 'Pearl FREE Portfolio Template ...',
+    name: 'TechSummit Template 1',
     viewed: 'Viewed 10h ago',
     badge: 'FREE',
     lastViewedHours: 10,
@@ -105,6 +106,7 @@ export default function App() {
       elements: cloneElements(project.elements),
       name: project.name,
       canvasSettings: project.canvasSettings,
+      templateKey: project.templateKey,
     }
 
     setProjects(currentProjects => [project, ...currentProjects])
@@ -122,6 +124,7 @@ export default function App() {
       elements: cloneElements(project.elements || []),
       name: project.name,
       canvasSettings: project.canvasSettings,
+      templateKey: project.templateKey,
     }
 
     setProjects(currentProjects =>

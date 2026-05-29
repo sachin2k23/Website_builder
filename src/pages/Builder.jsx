@@ -14,6 +14,22 @@ import {
   setElementLayout,
 } from '../utils/responsive'
 import { getContentHeight } from '../utils/editorGeometry'
+import {
+  applyThemeToTemplate,
+  applyBoldSummitTheme,
+  getCanvasFillByTemplate,
+
+  isTechSummitTemplate,
+  isBoldSummitTemplate,
+  isArtDecoTemplate,
+
+  isNeuSummitTemplate,
+  isVaporWaveFestTemplate,
+  isMinimalistMonochromeTemplate,
+  isFlatDesignTemplate,
+  isBotanicalOrganicTemplate,
+  isPlayfulGeometricTemplate,
+} from '../utils/templates'
 
 const DEFAULT_SIZES = {
   heading:   { width: 320, height: 50  },
@@ -111,10 +127,20 @@ export default function Builder({
   // ── Sync initialElements when template changes ─────────────────────────────
   useEffect(() => {
     const desktopCanvasWidth = canvasSettings?.width || 1200
-    const mapped = initialElements.map(el => {
-      const base = { ...el, name: el.name || el.type, children: [] }
-      return generateResponsiveDefaults(base, desktopCanvasWidth)
-    })
+    const normalized = initialElements.map(el => {
+  const base = {
+    ...el,
+    name: el.name || el.type,
+    children: [],
+  }
+
+  return generateResponsiveDefaults(base, desktopCanvasWidth)
+})
+
+// Auto-apply default light theme for BoldSummit
+const mapped = isBoldSummitTemplate(normalized)
+  ? applyBoldSummitTheme(normalized, 'light')
+  : normalized
     setCanvasSettings(prev => ({
       ...prev,
       ...(initialCanvasSettings || {}),
@@ -324,6 +350,29 @@ export default function Builder({
     setCanvasSettings(prev => ({ ...prev, ...changes }))
   }, [])
 
+  const handleTemplateThemeToggle = useCallback((nextTheme) => {
+    const current = treeByPage[activePageId] || []
+const supportsTheme =
+  isTechSummitTemplate(current) ||
+  isBoldSummitTemplate(current) ||
+  isArtDecoTemplate(current) ||
+  isNeuSummitTemplate(current) ||
+  isVaporWaveFestTemplate(current) ||
+  isMinimalistMonochromeTemplate(current) ||
+  isFlatDesignTemplate(current) ||
+  isBotanicalOrganicTemplate(current) ||
+  isPlayfulGeometricTemplate(current)
+
+if (!supportsTheme) return
+
+    const nextFill = getCanvasFillByTemplate(current, nextTheme)
+    if (nextFill) setCanvasSettings(prev => ({ ...prev, fill: nextFill }))
+    setTreeByPage(prev => {
+      const currentTree = prev[activePageId] || []
+     return pushSnapshot(applyThemeToTemplate(currentTree, nextTheme), prev)
+    })
+  }, [activePageId, pushSnapshot, treeByPage])
+
   // ── Undo / Redo ────────────────────────────────────────────────────────────
   const undo = useCallback(() => {
     if (historyIndex.current <= 0) return
@@ -476,6 +525,7 @@ export default function Builder({
             historyTick={historyTick}
             onPreview={() => setIsPreview(true)}
             onExport={() => exportToHTML(elements, canvasSettings, projectName)}
+            onTemplateThemeToggle={handleTemplateThemeToggle}
           />
 
           <div className="flex flex-1 overflow-hidden relative">
