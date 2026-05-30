@@ -46,7 +46,7 @@ import {
   isMinimalistMonochromeTemplate,
   applyMinimalistMonochromeTheme,
   getMinimalistMonochromeCanvasFill,
-} from '../templates/MinimalistmonochromeTemplate'
+} from '../templates/MinimalistMonochromeTemplate'
 
 // ── FlatDesign template helpers ──────────────────────────────────────────────
 import {
