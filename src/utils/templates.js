@@ -6,7 +6,7 @@ import {
   isArtDecoTemplate,
   applyArtDecoTheme,
   getArtDecoCanvasFill,
-} from '../templates/ArtDecoTemplate'
+} from '../templates/Artdecotemplate'
 
 // ── BoldSummit template helpers ──────────────────────────────────────────────
 import {
@@ -14,7 +14,7 @@ import {
   isBoldSummitTemplate,
   applyBoldSummitTheme,
   getBoldSummitCanvasFill,
-} from '../templates/BoldSummitTemplate'
+} from '../templates/Boldsummittemplate'
 
 // ── NeuSummit template helpers ───────────────────────────────────────────────
 import {
@@ -30,7 +30,7 @@ import {
   isPlayfulGeometricTemplate,
   applyPlayfulGeometricTheme,
   getPlayfulGeometricCanvasFill,
-} from '../templates/PlayfulGeometricTemplate'
+} from '../templates/Playfulgeometrictemplate'
 
 // ── VaporWaveFest template helpers ───────────────────────────────────────────
 import {
@@ -38,7 +38,7 @@ import {
   isVaporWaveFestTemplate,
   applyVaporWaveFestTheme,
   getVaporWaveFestCanvasFill,
-} from '../templates/VaporWaveFestTemplate'
+} from '../templates/Vaporwavefesttemplate'
 
 // ── MinimalistMonochrome template helpers ────────────────────────────────────
 import {
@@ -46,7 +46,7 @@ import {
   isMinimalistMonochromeTemplate,
   applyMinimalistMonochromeTheme,
   getMinimalistMonochromeCanvasFill,
-} from '../templates/MinimalistMonochromeTemplate'
+} from '../templates/Minimalistmonochrometemplate'
 
 // ── FlatDesign template helpers ──────────────────────────────────────────────
 import {
