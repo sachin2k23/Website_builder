@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import {
   AtSign,
   CheckCircle2,
@@ -187,6 +187,35 @@ function ensureCanvasElementStyles() {
   document.head.appendChild(s)
 }
 
+// ─── Scale a numeric value proportionally using the geometric mean of x/y scales ─
+// Using the geometric mean (√(sx·sy)) gives balanced scaling when width and height
+// change by different amounts, matching how Figma scales text and padding.
+function scaleValue(baseValue, scaleX, scaleY) {
+  return baseValue * Math.sqrt(scaleX * scaleY)
+}
+
+// ─── Default baseline dimensions per element type (used when element has no stored baseline) ─
+const TYPE_BASELINES = {
+  heading:   { width: 400, height: 60,  fontSize: 32, paddingH: 0,  paddingV: 0  },
+  label:     { width: 120, height: 24,  fontSize: 11, paddingH: 0,  paddingV: 0  },
+  paragraph: { width: 320, height: 80,  fontSize: 16, paddingH: 0,  paddingV: 0  },
+  text:      { width: 320, height: 80,  fontSize: 16, paddingH: 0,  paddingV: 0  },
+  link:      { width: 120, height: 24,  fontSize: 16, paddingH: 0,  paddingV: 0  },
+  button:    { width: 160, height: 44,  fontSize: 14, paddingH: 24, paddingV: 12 },
+  input:     { width: 240, height: 44,  fontSize: 14, paddingH: 12, paddingV: 10 },
+  textarea:  { width: 240, height: 120, fontSize: 14, paddingH: 12, paddingV: 10 },
+  select:    { width: 200, height: 44,  fontSize: 14, paddingH: 12, paddingV: 10 },
+  checkbox:  { width: 140, height: 24,  fontSize: 14, paddingH: 0,  paddingV: 0  },
+  image:     { width: 300, height: 200, fontSize: 14, paddingH: 0,  paddingV: 0  },
+  video:     { width: 320, height: 180, fontSize: 32, paddingH: 0,  paddingV: 0  },
+  icon:      { width: 48,  height: 48,  fontSize: 24, paddingH: 0,  paddingV: 0  },
+  divider:   { width: 300, height: 2,   fontSize: 0,  paddingH: 0,  paddingV: 0  },
+  card:      { width: 320, height: 200, fontSize: 14, paddingH: 16, paddingV: 16 },
+  container: { width: 400, height: 300, fontSize: 14, paddingH: 16, paddingV: 16 },
+  section:   { width: 800, height: 400, fontSize: 14, paddingH: 32, paddingV: 32 },
+  frame:     { width: 400, height: 300, fontSize: 14, paddingH: 16, paddingV: 16 },
+}
+
 export default function CanvasElement({
   element,
   onSelect,
@@ -210,10 +239,8 @@ export default function CanvasElement({
   const resizeStart  = useRef({})
 
   const [isEditing, setIsEditing] = useState(false)
-  // For native inputs we track the live value locally so the field is controlled
   const [nativeValue, setNativeValue] = useState(element.content || '')
 
-  // Keep nativeValue in sync if element.content changes externally
   useEffect(() => {
     if (!isEditing) setNativeValue(element.content || '')
   }, [element.content, isEditing])
@@ -221,7 +248,36 @@ export default function CanvasElement({
   const layout = getElementLayout(element, activeBreakpoint)
   const { x, y, width: w, height: h } = layout
 
-  const handleUpdate = (id, changes) => {
+  // ── Baseline dimensions: the "original" size this element was created at.
+  //    Stored once in element.baselineWidth / element.baselineHeight so that
+  //    proportional scaling always references the same origin across sessions.
+  //    Falls back to type defaults if not yet stored.
+  const typeDefaults = TYPE_BASELINES[element.type] || { width: 100, height: 40, fontSize: 14, paddingH: 0, paddingV: 0 }
+
+  const baselineWidth  = element.baselineWidth  ?? typeDefaults.width
+  const baselineHeight = element.baselineHeight ?? typeDefaults.height
+  const baselineFontSize  = element.baselineFontSize  ?? (element.fontSize ?? typeDefaults.fontSize)
+  const baselinePaddingH  = element.baselinePaddingH  ?? (element.paddingLeft  ?? element.paddingRight  ?? typeDefaults.paddingH)
+  const baselinePaddingV  = element.baselinePaddingV  ?? (element.paddingTop   ?? element.paddingBottom ?? typeDefaults.paddingV)
+  const baselineBorderRadius = element.baselineBorderRadius ?? (element.borderRadius ?? element.radius ?? 0)
+
+  // ── Current scale factors relative to baseline ──────────────────────────────
+  const scaleX = baselineWidth  > 0 ? w / baselineWidth  : 1
+  const scaleY = baselineHeight > 0 ? h / baselineHeight : 1
+  // Uniform scale for scalar properties (font-size, border-radius, padding)
+  const scaleU = Math.sqrt(scaleX * scaleY)
+
+  // ── Derived scaled values — updated live as w/h changes during resize ────────
+  const scaledFontSize     = Math.max(6,  Math.round(baselineFontSize     * scaleU * 10) / 10)
+  const scaledPaddingH     = Math.max(0,  Math.round(baselinePaddingH     * scaleU))
+  const scaledPaddingV     = Math.max(0,  Math.round(baselinePaddingV     * scaleU))
+  const scaledBorderRadius = Math.max(0,  Math.round(baselineBorderRadius * scaleU))
+  const scaledIconSize     = Math.max(8,  Math.round(Math.min(w, h) * 0.6))
+
+  // ── Local update helper — routes layout keys through setElementLayout ─────────
+  // Also seeds baseline dimensions the first time an element is moved/resized
+  // so subsequent resizes always scale from a stable origin.
+  const handleUpdate = useCallback((id, changes, options = {}) => {
     const layoutKeys = new Set(['x', 'y', 'width', 'height'])
     const layoutChanges = {}
     const styleChanges  = {}
@@ -229,14 +285,32 @@ export default function CanvasElement({
       if (layoutKeys.has(k)) layoutChanges[k] = v
       else                   styleChanges[k]  = v
     })
+
     let updated = Object.keys(styleChanges).length
       ? { ...element, ...styleChanges }
       : { ...element }
+
     if (Object.keys(layoutChanges).length) {
       updated = setElementLayout(updated, activeBreakpoint, layoutChanges)
     }
-    onUpdate(id, updated)
-  }
+
+    // Seed baselines once — on the very first resize/drag commit — so all future
+    // proportional scaling has a stable reference point.
+    if (!updated.baselineWidth || !updated.baselineHeight) {
+      const currentLayout = getElementLayout(updated, activeBreakpoint)
+      updated = {
+        ...updated,
+        baselineWidth:        currentLayout.width,
+        baselineHeight:       currentLayout.height,
+        baselineFontSize:     updated.fontSize  ?? typeDefaults.fontSize,
+        baselinePaddingH:     updated.paddingLeft  ?? updated.paddingRight  ?? typeDefaults.paddingH,
+        baselinePaddingV:     updated.paddingTop   ?? updated.paddingBottom ?? typeDefaults.paddingV,
+        baselineBorderRadius: updated.borderRadius ?? updated.radius ?? 0,
+      }
+    }
+
+    onUpdate(id, updated, options)
+  }, [element, activeBreakpoint, onUpdate, typeDefaults])
 
   // ── Enter edit mode ──────────────────────────────────────────────────────────
   const enterEditMode = useCallback((e) => {
@@ -249,13 +323,13 @@ export default function CanvasElement({
   const commitEdit = useCallback((e) => {
     handleUpdate(element.id, { content: e.target.innerText })
     setIsEditing(false)
-  }, [element.id]) // eslint-disable-line
+  }, [element.id, handleUpdate])
 
   // ── Commit edit (native input / textarea) ────────────────────────────────────
   const commitNativeEdit = useCallback((value) => {
     handleUpdate(element.id, { content: value })
     setIsEditing(false)
-  }, [element.id]) // eslint-disable-line
+  }, [element.id, handleUpdate])
 
   // ── Exit on Escape, commit on Enter (for single-line) ────────────────────────
   const handleEditKeyDown = useCallback((e) => {
@@ -263,7 +337,6 @@ export default function CanvasElement({
     if (e.key === 'Escape') {
       setIsEditing(false)
     }
-    // Enter commits for single-line elements; Shift+Enter inserts newline for paragraph/textarea
     if (e.key === 'Enter' && !e.shiftKey) {
       const multiline = ['paragraph', 'text', 'textarea'].includes(element.type)
       if (!multiline) {
@@ -273,8 +346,8 @@ export default function CanvasElement({
     }
   }, [element.type])
 
-  /* ── Drag ── */
-  const handleMouseDown = (e) => {
+  // ── Drag ─────────────────────────────────────────────────────────────────────
+  const handleMouseDown = useCallback((e) => {
     if (isEditing) return
     e.stopPropagation()
     e.preventDefault()
@@ -314,61 +387,133 @@ export default function CanvasElement({
         })
       })
     }
+
     const onUp = () => {
+      if (!dragging.current) return
       dragging.current = false
       dragChildren.current = []
       onInteractionGuides?.({ vertical: [], horizontal: [] })
+      handleUpdate(element.id, { x, y }, { commit: true })
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
+
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
-  }
+  }, [isEditing, element, x, y, w, h, elements, activeBreakpoint, zoom, canvasWidth, canvasHeight, onSelect, handleUpdate, onUpdate, onInteractionGuides])
 
-  /* ── Resize ── */
-  const handleResizeMouseDown = (e, handleId) => {
+  // ── Resize ───────────────────────────────────────────────────────────────────
+  const handleResizeMouseDown = useCallback((e, handleId) => {
     e.stopPropagation()
     e.preventDefault()
-    resizing.current = handleId
-    resizeStart.current = { mouseX: e.clientX, mouseY: e.clientY, x, y, w, h, prevDimensions: { x, y, width: w, height: h } }
 
-    const onMove = (e) => {
-      if (!resizing.current) return
-      const dx = (e.clientX - resizeStart.current.mouseX) / zoom
-      const dy = (e.clientY - resizeStart.current.mouseY) / zoom
-      const stableResize = calculateStableResize(
-        { x: 0, y: 0 }, { x: dx, y: dy },
-        resizeStart.current,
-        resizeStart.current.handleId || handleId,
-        { minWidth: DEFAULT_MIN_WIDTH, minHeight: DEFAULT_MIN_HEIGHT, maxWidth: canvasWidth, maxHeight: canvasHeight, snapToGrid: false }
-      )
-      const clampedBox = clampBoxToCanvas(stableResize, canvasWidth, canvasHeight)
-      handleUpdate(element.id, {
-        x: Math.round(clampedBox.x), y: Math.round(clampedBox.y),
-        width: Math.round(clampedBox.width), height: Math.round(clampedBox.height),
-      })
+    resizing.current = handleId
+
+    resizeStart.current = {
+      mouseX:  e.clientX,
+      mouseY:  e.clientY,
+      x,
+      y,
+      width:   w,
+      height:  h,
+      handleId,
     }
+
+    // Track last computed box so onUp commits the correct final dimensions
+    // rather than the stale closure values captured at drag-start.
+    const lastBox = { x, y, width: w, height: h }
+
+    const onMove = (moveEvent) => {
+      if (!resizing.current) return
+
+      // Convert absolute screen-space mouse positions → canvas-space by dividing
+      // by zoom so all three inputs to calculateStableResize share the same space.
+      const startCanvasPos = {
+        x: resizeStart.current.mouseX / zoom,
+        y: resizeStart.current.mouseY / zoom,
+      }
+      const currentCanvasPos = {
+        x: moveEvent.clientX / zoom,
+        y: moveEvent.clientY / zoom,
+      }
+
+      const startDimensions = {
+        x:      resizeStart.current.x,
+        y:      resizeStart.current.y,
+        width:  resizeStart.current.width,
+        height: resizeStart.current.height,
+      }
+
+      const newBox = calculateStableResize(
+        startCanvasPos,
+        currentCanvasPos,
+        startDimensions,
+        resizeStart.current.handleId,
+        {
+          minWidth:   DEFAULT_MIN_WIDTH,
+          minHeight:  DEFAULT_MIN_HEIGHT,
+          maxWidth:   canvasWidth,
+          maxHeight:  canvasHeight,
+          snapToGrid: false,
+        }
+      )
+
+      const clampedBox = clampBoxToCanvas(newBox, canvasWidth, canvasHeight)
+
+      const rounded = {
+        x:      Math.round(clampedBox.x),
+        y:      Math.round(clampedBox.y),
+        width:  Math.round(clampedBox.width),
+        height: Math.round(clampedBox.height),
+      }
+
+      // Keep lastBox in sync so onUp can commit the final dimensions.
+      Object.assign(lastBox, rounded)
+
+      handleUpdate(element.id, rounded)
+    }
+
     const onUp = () => {
-      resizing.current = null
+      if (!resizing.current) return
+      resizing.current    = null
       resizeStart.current = {}
       onInteractionGuides?.({ vertical: [], horizontal: [] })
+
+      // Commit lastBox (final resized dims), not stale closure x/y/w/h.
+      handleUpdate(element.id, { ...lastBox }, { commit: true })
+
       window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('mouseup',   onUp)
     }
+
     window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }
+    window.addEventListener('mouseup',   onUp)
+  }, [element.id, x, y, w, h, zoom, canvasWidth, canvasHeight, handleUpdate, onInteractionGuides])
 
   /* ── Visual styles (not layout) ── */
   const fill    = element.fill        || 'transparent'
-  const radius  = cssLength(element.borderRadius ?? element.radius ?? 0)
+  // Border-radius: use the live-scaled value during resize, otherwise use stored value.
+  const radius  = cssLength(scaledBorderRadius || (element.borderRadius ?? element.radius ?? 0))
   const border  = element.borderColor ? `1.5px solid ${element.borderColor}` : undefined
   const shadow  = element.shadowColor ? `0 4px 24px ${element.shadowColor}` : undefined
   const opacity = (element.opacity    ?? 100) / 100
   const isFrameLike = isContainerElement(element)
 
+  // ── Resolved font size: prefer explicitly-set fontSize from the properties panel,
+  //    but scale it proportionally when the element is being resized.
+  //    If the user has never explicitly set a font size, fall back to getResponsiveFontSize.
+  const resolvedFontSize = useMemo(() => {
+    // If a font size is explicitly stored in the element, scale it proportionally.
+    if (element.fontSize != null) {
+      return Math.max(6, Math.round(element.fontSize * scaleU * 10) / 10)
+    }
+    // Otherwise use the responsive helper (which reads breakpoint overrides) and scale.
+    const base = getResponsiveFontSize(element, activeBreakpoint, typeDefaults.fontSize)
+    return Math.max(6, Math.round(base * scaleU * 10) / 10)
+  }, [element, activeBreakpoint, scaleU, typeDefaults.fontSize])
+
   // ── Shared props for contentEditable text elements ───────────────────────────
-  const sharedTextProps = (defaultColor, defaultSize, defaultWeight, defaultLine) => ({
+  const sharedTextProps = (defaultColor, defaultWeight, defaultLine) => ({
     contentEditable: isEditing,
     suppressContentEditableWarning: true,
     onDoubleClick: enterEditMode,
@@ -376,7 +521,7 @@ export default function CanvasElement({
     onKeyDown: handleEditKeyDown,
     style: {
       color:       element.textColor || defaultColor,
-      fontSize:    `${getResponsiveFontSize(element, activeBreakpoint, defaultSize)}px`,
+      fontSize:    `${resolvedFontSize}px`,
       fontWeight:  getResponsiveValue(element, activeBreakpoint, 'fontWeight', defaultWeight),
       fontFamily:  element.fontFamily || 'inherit',
       textAlign:   getResponsiveValue(element, activeBreakpoint, 'textAlign', element.textAlign || 'left'),
@@ -397,7 +542,6 @@ export default function CanvasElement({
     if (isEditing && contentEditableRef.current) {
       const el = contentEditableRef.current
       el.focus()
-      // Place caret at end
       const range = document.createRange()
       const sel   = window.getSelection()
       range.selectNodeContents(el)
@@ -416,16 +560,15 @@ export default function CanvasElement({
     }
   }, [isEditing])
 
-  // ── renderContent ────────────────────────────────────────────────────────────
+  // ── renderContent ─────────────────────────────────────────────────────────────
   const renderContent = () => {
     switch (element.type) {
 
-      /* ── Plain text elements ── */
       case 'heading':
         return (
           <h1
             ref={contentEditableRef}
-            {...sharedTextProps('#0F2348', 32, 700, 1.2)}
+            {...sharedTextProps('#0F2348', 700, 1.2)}
           >
             {element.content || 'Your Heading'}
           </h1>
@@ -435,11 +578,11 @@ export default function CanvasElement({
         return (
           <span
             ref={contentEditableRef}
-            {...sharedTextProps('#5E6F8E', 11, 700, 1.4)}
+            {...sharedTextProps('#5E6F8E', 700, 1.4)}
             style={{
-              ...sharedTextProps('#5E6F8E', 11, 700, 1.4).style,
+              ...sharedTextProps('#5E6F8E', 700, 1.4).style,
               textTransform: 'uppercase',
-              letterSpacing: `${element.letterSpacing ?? 2}px`,
+              letterSpacing: `${Math.max(0.5, (element.letterSpacing ?? 2) * scaleU)}px`,
             }}
           >
             {element.content || 'LABEL'}
@@ -451,7 +594,7 @@ export default function CanvasElement({
         return (
           <p
             ref={contentEditableRef}
-            {...sharedTextProps('#4b5563', 16, 400, 1.6)}
+            {...sharedTextProps('#4b5563', 400, 1.6)}
           >
             {element.content || 'Your text goes here'}
           </p>
@@ -461,9 +604,9 @@ export default function CanvasElement({
         return (
           <a
             ref={contentEditableRef}
-            {...sharedTextProps('#2348D7', 16, 400, 1.6)}
+            {...sharedTextProps('#2348D7', 400, 1.6)}
             style={{
-              ...sharedTextProps('#2348D7', 16, 400, 1.6).style,
+              ...sharedTextProps('#2348D7', 400, 1.6).style,
               textDecoration: 'underline',
             }}
           >
@@ -471,7 +614,6 @@ export default function CanvasElement({
           </a>
         )
 
-      /* ── Button — inline editable label ── */
       case 'button':
         return (
           <button
@@ -483,7 +625,7 @@ export default function CanvasElement({
             onKeyDown={handleEditKeyDown}
             style={{
               color:           element.textColor || '#ffffff',
-              fontSize:        `${getResponsiveFontSize(element, activeBreakpoint, 14)}px`,
+              fontSize:        `${resolvedFontSize}px`,
               fontWeight:      getResponsiveValue(element, activeBreakpoint, 'fontWeight', 500),
               fontFamily:      element.fontFamily || 'inherit',
               width:           `${w}px`,
@@ -495,6 +637,11 @@ export default function CanvasElement({
               display:         'flex',
               alignItems:      'center',
               justifyContent:  'center',
+              // Scale padding proportionally with button size
+              paddingLeft:     `${scaledPaddingH}px`,
+              paddingRight:    `${scaledPaddingH}px`,
+              paddingTop:      `${scaledPaddingV}px`,
+              paddingBottom:   `${scaledPaddingV}px`,
               cursor:          isEditing ? 'text' : 'pointer',
               whiteSpace:      'nowrap',
               boxSizing:       'border-box',
@@ -506,7 +653,6 @@ export default function CanvasElement({
           </button>
         )
 
-      /* ── Select — editable option text ── */
       case 'select':
         return (
           <div
@@ -518,8 +664,9 @@ export default function CanvasElement({
               color:           element.textColor || '#111827',
               borderRadius:    radius,
               border:          border || '1.5px solid #D8E1F0',
-              padding:         '0 12px',
-              fontSize:        `${getResponsiveValue(element, activeBreakpoint, 'fontSize', 14)}px`,
+              paddingLeft:     `${scaledPaddingH}px`,
+              paddingRight:    `${scaledPaddingH}px`,
+              fontSize:        `${resolvedFontSize}px`,
               fontFamily:      element.fontFamily || 'inherit',
               boxSizing:       'border-box',
               display:         'flex',
@@ -554,11 +701,15 @@ export default function CanvasElement({
             ) : (
               <span>{element.content || 'Choose option'}</span>
             )}
-            <span style={{ color: '#7D8CA8', fontSize: '12px', flexShrink: 0, marginLeft: 4 }}>▾</span>
+            <span style={{
+              color:      '#7D8CA8',
+              fontSize:   `${Math.max(8, resolvedFontSize * 0.85)}px`,
+              flexShrink: 0,
+              marginLeft: `${Math.max(2, scaledPaddingH * 0.3)}px`,
+            }}>▾</span>
           </div>
         )
 
-      /* ── Checkbox — editable label text ── */
       case 'checkbox':
         return (
           <label
@@ -566,9 +717,9 @@ export default function CanvasElement({
             style={{
               display:    'flex',
               alignItems: 'center',
-              gap:        '8px',
+              gap:        `${Math.max(4, 8 * scaleU)}px`,
               cursor:     isEditing ? 'text' : 'pointer',
-              fontSize:   `${getResponsiveValue(element, activeBreakpoint, 'fontSize', 14)}px`,
+              fontSize:   `${resolvedFontSize}px`,
               color:      element.textColor || '#111827',
               fontFamily: element.fontFamily || 'inherit',
               userSelect: 'none',
@@ -576,7 +727,12 @@ export default function CanvasElement({
           >
             <input
               type="checkbox"
-              style={{ width: '16px', height: '16px', accentColor: '#2348D7', flexShrink: 0 }}
+              style={{
+                width:       `${Math.max(10, 16 * scaleU)}px`,
+                height:      `${Math.max(10, 16 * scaleU)}px`,
+                accentColor: '#2348D7',
+                flexShrink:  0,
+              }}
               onClick={e => e.stopPropagation()}
             />
             {isEditing ? (
@@ -592,16 +748,16 @@ export default function CanvasElement({
                   if (e.key === 'Enter')  { e.preventDefault(); commitNativeEdit(nativeValue) }
                 }}
                 style={{
-                  flex:       1,
-                  border:     'none',
+                  flex:         1,
+                  border:       'none',
                   borderBottom: '1.5px dashed #2348D7',
-                  outline:    'none',
-                  background: 'transparent',
-                  color:      'inherit',
-                  fontSize:   'inherit',
-                  fontFamily: 'inherit',
-                  cursor:     'text',
-                  padding:    '0',
+                  outline:      'none',
+                  background:   'transparent',
+                  color:        'inherit',
+                  fontSize:     'inherit',
+                  fontFamily:   'inherit',
+                  cursor:       'text',
+                  padding:      '0',
                 }}
               />
             ) : (
@@ -610,7 +766,6 @@ export default function CanvasElement({
           </label>
         )
 
-      /* ── Input — click-through to actual focus ── */
       case 'input':
         return (
           <input
@@ -637,18 +792,20 @@ export default function CanvasElement({
               border:          isEditing
                 ? '1.5px solid #f59e0b'
                 : (border || '1.5px solid #D8E1F0'),
-              padding:    '0 12px',
-              fontSize:   `${getResponsiveValue(element, activeBreakpoint, 'fontSize', 14)}px`,
-              fontFamily: element.fontFamily || 'inherit',
-              outline:    'none',
-              boxSizing:  'border-box',
-              display:    'block',
-              cursor:     isEditing ? 'text' : 'move',
+              paddingLeft:     `${scaledPaddingH}px`,
+              paddingRight:    `${scaledPaddingH}px`,
+              paddingTop:      `${scaledPaddingV}px`,
+              paddingBottom:   `${scaledPaddingV}px`,
+              fontSize:        `${resolvedFontSize}px`,
+              fontFamily:      element.fontFamily || 'inherit',
+              outline:         'none',
+              boxSizing:       'border-box',
+              display:         'block',
+              cursor:          isEditing ? 'text' : 'move',
             }}
           />
         )
 
-      /* ── Textarea — click-through to actual focus ── */
       case 'textarea':
         return (
           <textarea
@@ -662,7 +819,6 @@ export default function CanvasElement({
             onKeyDown={isEditing ? (e) => {
               e.stopPropagation()
               if (e.key === 'Escape') { setIsEditing(false); setNativeValue(element.content || '') }
-              // Shift+Enter = newline (default), plain Enter = commit
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitNativeEdit(nativeValue) }
             } : undefined}
             style={{
@@ -674,50 +830,88 @@ export default function CanvasElement({
               border:          isEditing
                 ? '1.5px solid #f59e0b'
                 : (border || '1.5px solid #D8E1F0'),
-              padding:    '10px 12px',
-              fontSize:   `${getResponsiveValue(element, activeBreakpoint, 'fontSize', 14)}px`,
-              fontFamily: element.fontFamily || 'inherit',
-              outline:    'none',
-              boxSizing:  'border-box',
-              display:    'block',
-              resize:     'none',
-              cursor:     isEditing ? 'text' : 'move',
+              paddingLeft:     `${scaledPaddingH}px`,
+              paddingRight:    `${scaledPaddingH}px`,
+              paddingTop:      `${scaledPaddingV}px`,
+              paddingBottom:   `${scaledPaddingV}px`,
+              fontSize:        `${resolvedFontSize}px`,
+              fontFamily:      element.fontFamily || 'inherit',
+              outline:         'none',
+              boxSizing:       'border-box',
+              display:         'block',
+              resize:          'none',
+              cursor:          isEditing ? 'text' : 'move',
             }}
           />
         )
 
-      /* ── Non-editable elements (unchanged) ── */
       case 'image':
         return element.src ? (
           <img src={element.src} alt="" style={{
-            width: `${w}px`, height: `${h}px`,
-            objectFit: 'cover', borderRadius: radius, border, boxShadow: shadow, display: 'block',
-            backgroundColor: fill !== 'transparent' ? fill : '#F3F6FB', boxSizing: 'border-box',
+            width:           `${w}px`,
+            height:          `${h}px`,
+            objectFit:       'cover',
+            borderRadius:    radius,
+            border,
+            boxShadow:       shadow,
+            display:         'block',
+            backgroundColor: fill !== 'transparent' ? fill : '#F3F6FB',
+            boxSizing:       'border-box',
           }} />
         ) : (
           <div style={{
-            width: `${w}px`, height: `${h}px`,
+            width:           `${w}px`,
+            height:          `${h}px`,
             backgroundColor: fill !== 'transparent' ? fill : '#F3F6FB',
-            borderRadius: radius, border: border || '1.5px dashed #D8E1F0', boxShadow: shadow,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
-            boxSizing: 'border-box',
+            borderRadius:    radius,
+            border:          border || '1.5px dashed #D8E1F0',
+            boxShadow:       shadow,
+            display:         'flex',
+            flexDirection:   'column',
+            alignItems:      'center',
+            justifyContent:  'center',
+            gap:             `${Math.max(3, 6 * scaleU)}px`,
+            boxSizing:       'border-box',
           }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C5D0E4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            {/* Icon scales with element */}
+            <svg
+              width={Math.max(14, 28 * scaleU)}
+              height={Math.max(14, 28 * scaleU)}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#C5D0E4"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <rect x="3" y="3" width="18" height="18" rx="3"/>
               <circle cx="8.5" cy="8.5" r="1.5"/>
               <polyline points="21 15 16 10 5 21"/>
             </svg>
-            <span style={{ fontSize: '11px', color: '#C5D0E4', fontFamily: 'Inter, sans-serif' }}>Image</span>
+            <span style={{
+              fontSize:   `${Math.max(8, 11 * scaleU)}px`,
+              color:      '#C5D0E4',
+              fontFamily: 'Inter, sans-serif',
+            }}>Image</span>
           </div>
         )
 
       case 'video':
         return (
           <div style={{
-            width: `${w}px`, height: `${h}px`,
-            backgroundColor: '#0F1A2E', borderRadius: radius, border, boxShadow: shadow,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '32px',
-            boxSizing: 'border-box',
+            width:           `${w}px`,
+            height:          `${h}px`,
+            backgroundColor: '#0F1A2E',
+            borderRadius:    radius,
+            border,
+            boxShadow:       shadow,
+            display:         'flex',
+            alignItems:      'center',
+            justifyContent:  'center',
+            color:           'white',
+            // Play icon scales with the video element
+            fontSize:        `${Math.max(16, 32 * scaleU)}px`,
+            boxSizing:       'border-box',
           }}>▶</div>
         )
 
@@ -725,17 +919,29 @@ export default function CanvasElement({
         const Icon = ICON_COMPONENTS[element.iconSet] || Star
         return (
           <div style={{
-            width: `${w}px`, height: `${h}px`,
-            color: element.textColor || '#2348D7',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width:   `${w}px`,
+            height:  `${h}px`,
+            color:   element.textColor || '#2348D7',
+            display: 'flex',
+            alignItems:     'center',
+            justifyContent: 'center',
           }}>
-            <Icon size={Math.min(w, h)} strokeWidth={2.2} />
+            {/* Icon SVG fills 60% of the bounding box, scaling naturally with w/h */}
+            <Icon size={scaledIconSize} strokeWidth={Math.max(1, 2.2 / Math.max(scaleU, 0.5))} />
           </div>
         )
       }
 
       case 'divider':
-        return <div style={{ width: `${w}px`, height: `${h || 2}px`, backgroundColor: element.fill || '#E2E8F4', borderRadius: '2px' }} />
+        // Height is driven by the element box, no scaling needed
+        return (
+          <div style={{
+            width:           `${w}px`,
+            height:          `${h || 2}px`,
+            backgroundColor: element.fill || '#E2E8F4',
+            borderRadius:    '2px',
+          }} />
+        )
 
       case 'card':
       case 'container':
@@ -743,19 +949,27 @@ export default function CanvasElement({
       case 'frame':
         return (
           <div style={{
-            width: `${w}px`, height: `${h}px`, backgroundColor: fill,
-            borderRadius: radius,
-            border: border || (fill === 'transparent' || !fill ? '1.5px dashed #D8E1F0' : 'none'),
-            boxShadow: shadow, position: 'relative', overflow: 'hidden', boxSizing: 'border-box',
+            width:           `${w}px`,
+            height:          `${h}px`,
+            backgroundColor: fill,
+            borderRadius:    radius,
+            border:          border || (fill === 'transparent' || !fill ? '1.5px dashed #D8E1F0' : 'none'),
+            boxShadow:       shadow,
+            position:        'relative',
+            overflow:        'hidden',
+            boxSizing:       'border-box',
           }} />
         )
 
       default:
         return (
           <div style={{
-            width: `${w}px`, height: `${h}px`,
+            width:           `${w}px`,
+            height:          `${h}px`,
             backgroundColor: fill !== 'transparent' ? fill : '#F3F6FB',
-            borderRadius: radius, border: border || '1.5px dashed #D8E1F0', boxSizing: 'border-box',
+            borderRadius:    radius,
+            border:          border || '1.5px dashed #D8E1F0',
+            boxSizing:       'border-box',
           }} />
         )
     }
@@ -772,20 +986,20 @@ export default function CanvasElement({
       onClick={e => e.stopPropagation()}
       onContextMenu={e => onContextMenu?.(e, element.id)}
       style={{
-        position:     'absolute',
-        left:         `${x}px`,
-        top:          `${y}px`,
-        width:        `${w}px`,
-        height:       `${h}px`,
+        position:      'absolute',
+        left:          `${x}px`,
+        top:           `${y}px`,
+        width:         `${w}px`,
+        height:        `${h}px`,
         opacity,
-        userSelect:   isEditing ? 'text' : 'none',
-        borderRadius: radius,
-        zIndex:       isEditing ? 20 : (isFrameLike ? 0 : (isSelected ? 10 : 1)),
-        display:      element.display || 'block',
+        userSelect:    isEditing ? 'text' : 'none',
+        borderRadius:  radius,
+        zIndex:        isEditing ? 20 : (isFrameLike ? 0 : (isSelected ? 10 : 1)),
+        display:       element.display || 'block',
         flexDirection: element.display === 'flex' ? (element.flexDirection || 'row') : undefined,
-        alignItems:   element.display === 'flex' ? (element.alignItems || 'center') : undefined,
-        justifyContent: element.display === 'flex' ? (element.justifyContent || 'flex-start') : undefined,
-        gap:          element.gap ? `${element.gap}px` : undefined,
+        alignItems:    element.display === 'flex' ? (element.alignItems || 'center') : undefined,
+        justifyContent:element.display === 'flex' ? (element.justifyContent || 'flex-start') : undefined,
+        gap:           element.gap ? `${element.gap}px` : undefined,
         gridTemplateColumns: element.display === 'grid' ? `repeat(${element.gridCols || 2}, 1fr)` : undefined,
         padding: [element.paddingTop, element.paddingRight, element.paddingBottom, element.paddingLeft]
           .some(v => v !== undefined && v !== 0)
@@ -799,7 +1013,7 @@ export default function CanvasElement({
         cursor:   isEditing ? 'text' : (element.cursor || 'move'),
       }}
     >
-      {/* Hover label (hidden while editing) */}
+      {/* Hover label */}
       {!isEditing && <span className="ce-hover-label">{element.name || element.type}</span>}
 
       {renderContent()}
@@ -811,25 +1025,25 @@ export default function CanvasElement({
         </div>
       )}
 
-      {/* Double-click-to-edit hint shown on hover when selected and not yet editing */}
+      {/* Double-click-to-edit hint */}
       {isSelected && !isEditing && canEdit && (
         <div
           style={{
-            position:  'absolute',
-            bottom:    '-22px',
-            left:      '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(35,72,215,0.85)',
-            color:     'white',
-            fontSize:  '10px',
-            fontWeight: 600,
-            fontFamily: 'Inter, sans-serif',
-            padding:   '2px 8px',
-            borderRadius: 4,
-            whiteSpace: 'nowrap',
+            position:      'absolute',
+            bottom:        '-22px',
+            left:          '50%',
+            transform:     'translateX(-50%)',
+            background:    'rgba(35,72,215,0.85)',
+            color:         'white',
+            fontSize:      '10px',
+            fontWeight:    600,
+            fontFamily:    'Inter, sans-serif',
+            padding:       '2px 8px',
+            borderRadius:  4,
+            whiteSpace:    'nowrap',
             pointerEvents: 'none',
-            zIndex:    30,
-            opacity:   0.85,
+            zIndex:        30,
+            opacity:       0.85,
             letterSpacing: '0.2px',
           }}
         >
@@ -887,13 +1101,13 @@ export default function CanvasElement({
         </div>
       )}
 
-      {/* Resize handles (hidden while editing) */}
+      {/* Resize handles — hidden while editing */}
       {isSelected && !isEditing && HANDLES.map(handle => (
         <div
           key={handle.id}
           className="ce-resize-handle"
           onMouseDown={e => handleResizeMouseDown(e, handle.id)}
-          style={{ position: 'absolute', cursor: handle.cursor, ...handle.style }}
+          style={{ cursor: handle.cursor, ...handle.style }}
           title={`Resize ${handle.id}`}
         />
       ))}

@@ -41,6 +41,8 @@ function NumberInput({ label, value, suffix, onChange }) {
           type="text"
           inputMode="numeric"
           value={value ?? ''}
+          // FIX: prevent Backspace/Delete from bubbling up to canvas keyboard handler
+          onKeyDown={(e) => e.stopPropagation()}
           onChange={e => {
             const val = e.target.value
             if (val === '' || val === '-') { onChange?.(0); return }
@@ -61,7 +63,7 @@ function NumberInput({ label, value, suffix, onChange }) {
 function ColorRow({ label, color, onChange, onRemove }) {
   const [open, setOpen] = useState(false)
   const safeColor = color || '#ffffff'
-  
+
   return (
     <div className="relative">
       <div className="flex items-center justify-between py-1.5">
@@ -75,8 +77,8 @@ function ColorRow({ label, color, onChange, onRemove }) {
             <span className="text-xs text-[#0F2348] font-mono">{safeColor.replace('#', '').toUpperCase()}</span>
           </button>
           {onRemove && (
-            <button 
-              onClick={onRemove} 
+            <button
+              onClick={onRemove}
               className="text-[#AAB8D4] hover:text-red-400 transition-colors p-1"
             >
               <X size={14} />
@@ -84,13 +86,13 @@ function ColorRow({ label, color, onChange, onRemove }) {
           )}
         </div>
       </div>
-      
+
       {open && (
         <div className="absolute right-0 z-[100] bg-white border border-[#D8E1F0] rounded-xl shadow-xl p-3 w-[240px] mt-1">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[#0F2348] text-xs font-semibold">{label}</span>
-            <button 
-              onClick={() => setOpen(false)} 
+            <button
+              onClick={() => setOpen(false)}
               className="text-[#AAB8D4] hover:text-[#0F2348] transition-colors"
             >
               <X size={14} />
@@ -103,6 +105,7 @@ function ColorRow({ label, color, onChange, onRemove }) {
               <input
                 type="text"
                 value={safeColor.replace('#', '').toUpperCase()}
+                onKeyDown={(e) => e.stopPropagation()}
                 onChange={e => onChange('#' + e.target.value.replace('#', ''))}
                 maxLength={6}
                 className="flex-1 px-2 py-2 text-xs text-[#0F2348] bg-transparent outline-none font-mono"
@@ -200,8 +203,8 @@ function ImageUploadSection({ selected, onUpdate }) {
             type="url"
             placeholder="https://example.com/image.jpg"
             value={urlValue}
+            onKeyDown={e => { e.stopPropagation(); if (e.key === 'Enter') applyUrl() }}
             onChange={e => setUrlValue(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && applyUrl()}
             className="w-full px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg outline-none focus:border-[#2348D7] placeholder-[#C5D0E4] transition-colors"
           />
           <button
@@ -235,6 +238,7 @@ function ImageUploadSection({ selected, onUpdate }) {
             type="text"
             placeholder="Describe the image…"
             value={selected.alt || ''}
+            onKeyDown={(e) => e.stopPropagation()}
             onChange={e => onUpdate(selected.id, { alt: e.target.value })}
             className="w-full px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg outline-none focus:border-[#2348D7] transition-colors placeholder-[#C5D0E4]"
           />
@@ -247,33 +251,28 @@ function ImageUploadSection({ selected, onUpdate }) {
 // ─── LINK SECTION ────────────────────────────────────────────────────────────
 
 const LINK_TYPES = [
-  { id: 'none',     label: 'None',     icon: X },
-  { id: 'page',     label: 'Page',     icon: FileText },
-  { id: 'url',      label: 'URL',      icon: ExternalLink },
-  { id: 'anchor',   label: 'Anchor',   icon: Hash },
+  { id: 'none',   label: 'None',   icon: X          },
+  { id: 'page',   label: 'Page',   icon: FileText   },
+  { id: 'url',    label: 'URL',    icon: ExternalLink },
+  { id: 'anchor', label: 'Anchor', icon: Hash       },
 ]
 
 /**
  * LinkSection - Full page/URL/anchor linking panel
- * Props:
- *   selected   – the currently selected element
- *   onUpdate   – (id, patch) => void
- *   pages      – array of { id, name } from parent (your page list)
  */
 function LinkSection({ selected, onUpdate, pages = [] }) {
-  const linkType = selected.linkType || 'none'
-  const update   = (patch) => onUpdate(selected.id, patch)
+  const linkType   = selected.linkType || 'none'
+  const update     = (patch) => onUpdate(selected.id, patch)
 
-  // Derive a preview of the resolved href
   const resolvedHref = (() => {
-    if (linkType === 'url')    return selected.linkHref || ''
-    if (linkType === 'page')   return selected.linkPage  ? `/${selected.linkPage}`  : ''
+    if (linkType === 'url')    return selected.linkHref   || ''
+    if (linkType === 'page')   return selected.linkPage   ? `/${selected.linkPage}`   : ''
     if (linkType === 'anchor') return selected.linkAnchor ? `#${selected.linkAnchor}` : ''
     return ''
   })()
 
   return (
-    <Section title="Link" defaultOpen={true}>
+    <Section title="Link" defaultOpen={false}>
       {/* ── Type pills ── */}
       <div>
         <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Link Type</p>
@@ -335,7 +334,6 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
             </div>
           )}
 
-          {/* Anchor on page (optional) */}
           <div>
             <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-1.5">
               Scroll to section <span className="text-[#C5D0E4] font-normal normal-case">(optional)</span>
@@ -346,6 +344,7 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
                 type="text"
                 placeholder="section-id"
                 value={selected.linkPageAnchor || ''}
+                onKeyDown={(e) => e.stopPropagation()}
                 onChange={e => update({ linkPageAnchor: e.target.value.replace(/\s/g, '-').toLowerCase() })}
                 className="flex-1 px-2 py-2 text-xs text-[#0F2348] bg-transparent outline-none placeholder-[#C5D0E4]"
               />
@@ -364,6 +363,7 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
               type="url"
               placeholder="https://example.com"
               value={selected.linkHref || ''}
+              onKeyDown={(e) => e.stopPropagation()}
               onChange={e => update({ linkHref: e.target.value, link: e.target.value })}
               className="flex-1 px-2 py-2 text-xs text-[#0F2348] bg-transparent outline-none placeholder-[#C5D0E4]"
             />
@@ -381,6 +381,7 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
               type="text"
               placeholder="section-id"
               value={selected.linkAnchor || ''}
+              onKeyDown={(e) => e.stopPropagation()}
               onChange={e => {
                 const val = e.target.value.replace(/\s/g, '-').toLowerCase()
                 update({ linkAnchor: val, link: `#${val}` })
@@ -399,7 +400,7 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
           <div className="flex gap-1">
             {[
               { val: '_self',  label: 'Same tab' },
-              { val: '_blank', label: 'New tab' },
+              { val: '_blank', label: 'New tab'  },
             ].map(opt => (
               <button
                 key={opt.val}
@@ -446,13 +447,12 @@ export default function RightPanel({
   onReorder,
   activeBreakpoint = 'desktop',
   customWidth = 800,
-  pages = [],   // <-- pass your page list here: [{ id: 'home', name: 'Home' }, ...]
+  pages = [],
 }) {
   const [showBorder, setShowBorder] = useState(!!selected?.borderColor)
   const [showShadow, setShowShadow] = useState(!!selected?.shadowColor)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // Fix state reset when element changes
   useEffect(() => {
     setShowBorder(!!selected?.borderColor)
     setShowShadow(!!selected?.shadowColor)
@@ -494,11 +494,14 @@ export default function RightPanel({
                 </button>
               </div>
             </div>
+
             {/* Element name field */}
             <input
               type="text"
               value={selected.label || selected.type}
               onChange={(e) => onUpdate(selected.id, { label: e.target.value })}
+              // FIX: prevent Backspace from bubbling to canvas and deleting the element
+              onKeyDown={(e) => e.stopPropagation()}
               placeholder="Element name"
               className="w-full px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded outline-none focus:border-[#2348D7] transition-colors"
             />
@@ -531,22 +534,26 @@ export default function RightPanel({
             )}
           </div>
 
-          {/* Content field for text elements */}
+          {/* ── Content field for text elements ── */}
           {isText && (
             <Section title="Content" defaultOpen={true}>
               <textarea
                 value={selected.content || ''}
                 onChange={(e) => onUpdate(selected.id, { content: e.target.value })}
+                onKeyDown={(e) => e.stopPropagation()}
                 placeholder="Element text..."
                 className="w-full h-24 px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded outline-none focus:border-[#2348D7] resize-none"
               />
             </Section>
           )}
 
-          {/* Image upload */}
+          {/* ── Image upload ── */}
           {isImage && <ImageUploadSection selected={selected} onUpdate={onUpdate} />}
 
-          {/* LAYOUT */}
+          {/* ── LINK — after Content ── */}
+          <LinkSection selected={selected} onUpdate={onUpdate} pages={pages} />
+
+          {/* ── LAYOUT ── */}
           <Section title="Layout" defaultOpen={true}>
             <div className="space-y-3">
               <div>
@@ -559,16 +566,16 @@ export default function RightPanel({
               <div>
                 <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Size</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <NumberInput label="W" value={Math.round(selected.width || 200)} suffix="px" onChange={val => update('width', val)} />
+                  <NumberInput label="W" value={Math.round(selected.width  || 200)} suffix="px" onChange={val => update('width',  val)} />
                   <NumberInput label="H" value={Math.round(selected.height || 100)} suffix="px" onChange={val => update('height', val)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <NumberInput label="Rotation" value={Math.round(selected.rotation || 0)} suffix="°" onChange={val => update('rotation', val)} />
-                <NumberInput label="Z-Index"   value={Math.round(selected.zIndex   || 0)}         onChange={val => update('zIndex',    val)} />
+                <NumberInput label="Z-Index"  value={Math.round(selected.zIndex   || 0)}            onChange={val => update('zIndex',    val)} />
               </div>
-              
-              {/* Display mode selector */}
+
+              {/* Display mode */}
               <div>
                 <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Display</p>
                 <div className="grid grid-cols-3 gap-1">
@@ -578,13 +585,13 @@ export default function RightPanel({
                       onClick={() => {
                         const updateObj = { display: mode }
                         if (mode === 'flex') {
-                          updateObj.flexDirection = 'row'
-                          updateObj.alignItems = 'center'
+                          updateObj.flexDirection  = 'row'
+                          updateObj.alignItems     = 'center'
                           updateObj.justifyContent = 'flex-start'
-                          updateObj.gap = 8
+                          updateObj.gap            = 8
                         } else if (mode === 'grid') {
                           updateObj.gridCols = 2
-                          updateObj.gap = 16
+                          updateObj.gap      = 16
                         }
                         onUpdate(selected.id, updateObj)
                       }}
@@ -664,25 +671,25 @@ export default function RightPanel({
               {/* Grid options */}
               {selected.display === 'grid' && (
                 <div className="space-y-2 pt-2 border-t border-[#EEF2FA]">
-                  <NumberInput label="Columns" value={selected.gridCols || 2} onChange={val => onUpdate(selected.id, { gridCols: Math.max(1, val) })} />
-                  <NumberInput label="Gap" value={selected.gap || 16} suffix="px" onChange={val => onUpdate(selected.id, { gap: Math.max(0, val) })} />
+                  <NumberInput label="Columns" value={selected.gridCols || 2}  onChange={val => onUpdate(selected.id, { gridCols: Math.max(1, val) })} />
+                  <NumberInput label="Gap"     value={selected.gap      || 16} suffix="px" onChange={val => onUpdate(selected.id, { gap: Math.max(0, val) })} />
                 </div>
               )}
             </div>
           </Section>
 
-          {/* SPACING / BOX MODEL */}
+          {/* ── SPACING / BOX MODEL ── */}
           <BoxModelVisual element={selected} onUpdate={onUpdate} />
 
-          {/* APPEARANCE */}
+          {/* ── APPEARANCE ── */}
           <Section title="Appearance" defaultOpen={true}>
             <div className="space-y-3">
               {!isImage && (
                 <ColorRow label="Background" color={selected.fill || '#ffffff'} onChange={val => update('fill', val)} />
               )}
               <NumberInput label="Border Radius" value={Math.round(selected.radius || 0)} suffix="px" onChange={val => update('radius', val)} />
-              
-              {/* Overflow control */}
+
+              {/* Overflow */}
               <div>
                 <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Overflow</p>
                 <div className="grid grid-cols-3 gap-1">
@@ -701,8 +708,8 @@ export default function RightPanel({
                   ))}
                 </div>
               </div>
-              
-              {/* Cursor control */}
+
+              {/* Cursor */}
               <div>
                 <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Cursor</p>
                 <select
@@ -716,6 +723,7 @@ export default function RightPanel({
                 </select>
               </div>
 
+              {/* Border */}
               {showBorder ? (
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -734,6 +742,7 @@ export default function RightPanel({
                 <button onClick={() => { setShowBorder(true); update('borderColor', '#e2e8f4'); update('borderWidth', 1) }} className="w-full py-2 rounded-lg border border-dashed border-[#D8E1F0] text-[#AAB8D4] hover:text-[#2348D7] hover:border-[#2348D7] text-xs font-medium transition-colors">+ Add Border</button>
               )}
 
+              {/* Shadow */}
               {showShadow ? (
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -750,7 +759,7 @@ export default function RightPanel({
             </div>
           </Section>
 
-          {/* TYPOGRAPHY */}
+          {/* ── TYPOGRAPHY ── */}
           {isText && (
             <Section title="Typography" defaultOpen={true}>
               <div className="space-y-3">
@@ -765,7 +774,7 @@ export default function RightPanel({
                   <div className="space-y-1.5">
                     {[
                       { bp: 'tablet', label: 'Tablet', scale: 0.9 },
-                      { bp: 'phone', label: 'Phone', scale: 0.8 },
+                      { bp: 'phone',  label: 'Phone',  scale: 0.8 },
                     ].map(({ bp, label, scale }) => (
                       <div key={bp} className="flex items-center justify-between text-[10px]">
                         <span className="text-[#AAB8D4]">{label} (×{scale})</span>
@@ -788,6 +797,7 @@ export default function RightPanel({
                     ))}
                   </select>
                 </div>
+
                 <div>
                   <p className="text-[#AAB8D4] text-[9px] font-medium mb-1.5">Weight</p>
                   <div className="grid grid-cols-3 gap-2">
@@ -796,6 +806,7 @@ export default function RightPanel({
                     ))}
                   </div>
                 </div>
+
                 <div>
                   <p className="text-[#AAB8D4] text-[9px] font-medium mb-1.5">Format</p>
                   <div className="flex items-center gap-1 mb-2">
@@ -812,27 +823,23 @@ export default function RightPanel({
                     ))}
                   </div>
                 </div>
+
                 <ColorRow label="Color" color={selected.textColor || '#111827'} onChange={val => update('textColor', val)} />
               </div>
             </Section>
           )}
 
-          {/* ══════════════════════════════════════════════════════════════════ */}
-          {/* LINK SECTION — replaces old placeholder in Actions              */}
-          {/* ══════════════════════════════════════════════════════════════════ */}
-          <LinkSection selected={selected} onUpdate={onUpdate} pages={pages} />
-
-          {/* ACTIONS */}
+          {/* ── ACTIONS ── */}
           <Section title="Actions" defaultOpen={false}>
             <div className="space-y-2">
               <div>
                 <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Arrange</p>
                 <div className="grid grid-cols-4 gap-1">
                   {[
-                    { fn: 'back-all', icon: SendToBack,  label: 'Back All' },
-                    { fn: 'back',     icon: ArrowDown,   label: 'Back'     },
-                    { fn: 'forward',  icon: ArrowUp,     label: 'Forward'  },
-                    { fn: 'front',    icon: BringToFront, label: 'Front'   },
+                    { fn: 'back-all', icon: SendToBack,   label: 'Back All' },
+                    { fn: 'back',     icon: ArrowDown,    label: 'Back'     },
+                    { fn: 'forward',  icon: ArrowUp,      label: 'Forward'  },
+                    { fn: 'front',    icon: BringToFront, label: 'Front'    },
                   ].map(({ fn, icon: Icon, label }) => (
                     <button key={fn} onClick={() => onReorder(selected.id, fn)} title={label} className="flex flex-col items-center gap-1 py-2 rounded-lg border border-[#E2E8F4] hover:border-[#2348D7] hover:bg-[#EEF3FF] text-[#5E6F8E] hover:text-[#2348D7] transition-all">
                       <Icon size={13} />
@@ -846,7 +853,7 @@ export default function RightPanel({
         </>
       ) : (
         <>
-          {/* ── Canvas properties ── */}
+          {/* ── Canvas properties (no element selected) ── */}
           <div className="px-4 py-3 border-b border-[#EEF2FA] shrink-0 bg-gradient-to-b from-[#F8FAFF] to-white">
             <p className="text-[#AAB8D4] text-[9px] font-semibold uppercase tracking-widest">CANVAS</p>
             <p className="text-[#0F2348] text-sm font-bold mt-1">Properties</p>

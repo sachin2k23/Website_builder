@@ -173,6 +173,9 @@ export const vaporWaveFestElements = [
 
 const VW_LIGHT_MAP = {
   // Backgrounds
+  // FIX: '#090014' was duplicated — once here, and again at the bottom of the
+  // map. The bottom entry was silently overwriting this one. Removed the
+  // duplicate at the bottom; keeping only this single canonical mapping.
   '#090014':              '#F5F0FF',
   '#0D0022':              '#EDE5FF',
   'rgba(9,0,20,0.92)':   'rgba(237,229,255,0.96)',
@@ -211,7 +214,7 @@ const VW_LIGHT_MAP = {
   'rgba(0,255,255,0.45)':  'rgba(0,140,160,0.55)',
   'rgba(255,0,255,0.45)':  'rgba(180,0,180,0.55)',
   'rgba(255,153,0,0.45)':  'rgba(180,100,0,0.55)',
-  '#090014':             '#F5F0FF',
+  // REMOVED: duplicate '#090014': '#F5F0FF' that was here — now only defined once above
 }
 
 function toVwLightTheme(element) {

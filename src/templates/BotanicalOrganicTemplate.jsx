@@ -30,6 +30,8 @@ const L = {
   white15:      'rgba(255,255,255,0.15)',
   white25:      'rgba(255,255,255,0.25)',
   white08:      'rgba(255,255,255,0.08)',
+  // FIX 1: dedicated button-bg token so dark mode doesn't map it to near-white
+  ctaBg:        '#2D3A31',   // same hue as L.fg but explicit alias for button fills
 }
 
 // Dark palette overrides
@@ -57,6 +59,8 @@ const D = {
   white15:      'rgba(255,255,255,0.12)',
   white25:      'rgba(255,255,255,0.20)',
   white08:      'rgba(255,255,255,0.06)',
+  // FIX 1: dark-mode equivalent — mid-forest green keeps white text legible
+  ctaBg:        '#3D5245',
 }
 
 // ─── Base Elements (Light Mode) ───────────────────────────────────────────────
@@ -80,7 +84,8 @@ const botanicalOrganicBaseElements = [
   { id: 'bo-hero-eyebrow', type: 'paragraph', name: 'Hero Eyebrow', x: 76, y: 158, width: 300, height: 22, content: 'BOTANICAL WELLNESS SPA', fontSize: 11, fontWeight: 600, fontFamily: 'Source Sans 3', textColor: L.primary, opacity: 100 },
   { id: 'bo-hero-title', type: 'heading', name: 'Hero Title', x: 72, y: 192, width: 560, height: 220, content: 'Reconnect with\nyour natural\nself.', fontSize: 66, fontWeight: 700, fontFamily: 'Playfair Display', textColor: L.fg, lineHeight: 1.1, opacity: 100 },
   { id: 'bo-hero-desc', type: 'paragraph', name: 'Hero Description', x: 76, y: 432, width: 440, height: 80, content: 'A sanctuary of plant-based treatments, mindful rituals, and healing botanicals. Your wellness journey begins here, in the heart of nature.', fontSize: 17, fontWeight: 400, fontFamily: 'Source Sans 3', textColor: L.fgMuted, lineHeight: 1.75, opacity: 100 },
-  { id: 'bo-hero-cta-primary', type: 'button', name: 'Hero Primary CTA', x: 76, y: 540, width: 180, height: 52, content: 'Explore Treatments', fill: L.fg, textColor: L.fgInverse, fontSize: 13, fontWeight: 600, fontFamily: 'Source Sans 3', radius: 9999, opacity: 100 },
+  // FIX 2: use L.ctaBg instead of L.fg so dark-mode mapping keeps it a dark button
+  { id: 'bo-hero-cta-primary', type: 'button', name: 'Hero Primary CTA', x: 76, y: 540, width: 180, height: 52, content: 'Explore Treatments', fill: L.ctaBg, textColor: L.fgInverse, fontSize: 13, fontWeight: 600, fontFamily: 'Source Sans 3', radius: 9999, opacity: 100 },
   { id: 'bo-hero-cta-secondary', type: 'button', name: 'Hero Secondary CTA', x: 272, y: 540, width: 160, height: 52, content: 'Our Philosophy', fill: 'transparent', textColor: L.primary, fontSize: 13, fontWeight: 600, fontFamily: 'Source Sans 3', borderColor: L.primary, radius: 9999, opacity: 100 },
   // Hero decorative quote card
   { id: 'bo-hero-quote-card', type: 'container', name: 'Hero Quote Card', x: 700, y: 200, width: 310, height: 180, fill: L.bg, borderColor: L.border, radius: 24, opacity: 95 },
@@ -134,7 +139,8 @@ const botanicalOrganicBaseElements = [
   // ══ STATS SECTION (clay bg) ════════════════════════════════════════════════
   { id: 'bo-stats-bg', type: 'container', name: 'Stats Section', x: 0, y: 1860, width: 1200, height: 260, fill: L.bgAlt, radius: 0, opacity: 100 },
   { id: 'bo-stat-1', type: 'heading', name: 'Stat 1', x: 100, y: 1920, width: 220, height: 56, content: '4,200+', fontSize: 44, fontWeight: 700, fontFamily: 'Playfair Display', textColor: L.primary, opacity: 100 },
-  { id: 'bo-stat-1-label', type: 'paragraph', name: 'Stat 1 Label', x: 100, y: 980, width: 220, height: 40, content: 'guests welcomed\neach year', fontSize: 14, fontFamily: 'Source Sans 3', textColor: L.fgMuted, lineHeight: 1.55, opacity: 100 },
+  // FIX 3: was y:980 (rendered inside About section, invisible). Corrected to y:1976
+  { id: 'bo-stat-1-label', type: 'paragraph', name: 'Stat 1 Label', x: 100, y: 1976, width: 220, height: 40, content: 'guests welcomed\neach year', fontSize: 14, fontFamily: 'Source Sans 3', textColor: L.fgMuted, lineHeight: 1.55, opacity: 100 },
   { id: 'bo-stat-2', type: 'heading', name: 'Stat 2', x: 380, y: 1920, width: 220, height: 56, content: '60+', fontSize: 44, fontWeight: 700, fontFamily: 'Playfair Display', textColor: L.terracotta, opacity: 100 },
   { id: 'bo-stat-2-label', type: 'paragraph', name: 'Stat 2 Label', x: 380, y: 1980, width: 220, height: 40, content: 'botanical ingredients\nfrom certified farms', fontSize: 14, fontFamily: 'Source Sans 3', textColor: L.fgMuted, lineHeight: 1.55, opacity: 100 },
   { id: 'bo-stat-3', type: 'heading', name: 'Stat 3', x: 660, y: 1920, width: 220, height: 56, content: '18', fontSize: 44, fontWeight: 700, fontFamily: 'Playfair Display', textColor: L.fg, opacity: 100 },
@@ -177,11 +183,12 @@ const botanicalOrganicBaseElements = [
   { id: 'bo-plan-1-period', type: 'paragraph', name: 'Seed Period', x: 132, y: 3056, width: 240, height: 20, content: 'per month', fontSize: 13, fontFamily: 'Source Sans 3', textColor: L.fgMuted, opacity: 100 },
   { id: 'bo-plan-1-features', type: 'paragraph', name: 'Seed Features', x: 132, y: 3088, width: 240, height: 78, content: '2 treatments / month\nAccess to wellness library\nMember events\nPlant care kits', fontSize: 13, fontFamily: 'Source Sans 3', textColor: L.fgMuted, lineHeight: 1.75, opacity: 100 },
   { id: 'bo-plan-1-btn', type: 'button', name: 'Seed Button', x: 132, y: 3176, width: 220, height: 44, content: 'Begin Your Journey', fill: 'transparent', textColor: L.fg, fontSize: 13, fontWeight: 600, fontFamily: 'Source Sans 3', borderColor: L.fg, radius: 9999, opacity: 100 },
-  // Bloom plan (featured)
+  // Bloom plan (featured — dark card)
   { id: 'bo-plan-card-2', type: 'container', name: 'Bloom Plan Card', x: 450, y: 2896, width: 300, height: 340, fill: L.fg, borderColor: 'transparent', radius: 24, opacity: 100 },
   { id: 'bo-plan-2-badge', type: 'label', name: 'Bloom Badge', x: 490, y: 2920, width: 120, height: 24, content: 'MOST LOVED', fontSize: 10, fontWeight: 600, fontFamily: 'Source Sans 3', textColor: L.fg, fill: L.bgAlt, radius: 9999, opacity: 100 },
   { id: 'bo-plan-2-name', type: 'heading', name: 'Bloom Plan Name', x: 482, y: 2956, width: 240, height: 34, content: 'Bloom', fontSize: 26, fontWeight: 700, fontFamily: 'Playfair Display', textColor: L.fgInverse, opacity: 100 },
-  { id: 'bo-plan-2-price', type: 'heading', name: 'Bloom Plan Price', x: 482, y: 3002, width: 240, height: 56, content: '€189', fontSize: 48, fontWeight: 700, fontFamily: 'Playfair Display', textColor: L.primary, opacity: 100 },
+  // FIX 4: was L.primary (sage on dark green = low contrast). Use fgInverse for legibility.
+  { id: 'bo-plan-2-price', type: 'heading', name: 'Bloom Plan Price', x: 482, y: 3002, width: 240, height: 56, content: '€189', fontSize: 48, fontWeight: 700, fontFamily: 'Playfair Display', textColor: L.fgInverse, opacity: 100 },
   { id: 'bo-plan-2-period', type: 'paragraph', name: 'Bloom Period', x: 482, y: 3062, width: 240, height: 20, content: 'per month', fontSize: 13, fontFamily: 'Source Sans 3', textColor: 'rgba(249,248,244,0.55)', opacity: 100 },
   { id: 'bo-plan-2-features', type: 'paragraph', name: 'Bloom Features', x: 482, y: 3094, width: 240, height: 96, content: 'Unlimited treatments\nPrivate garden suite access\nMonthly botanical box\nPersonal wellness curator\nPriority bookings', fontSize: 13, fontFamily: 'Source Sans 3', textColor: 'rgba(249,248,244,0.75)', lineHeight: 1.75, opacity: 100 },
   { id: 'bo-plan-2-btn', type: 'button', name: 'Bloom Button', x: 482, y: 3196, width: 220, height: 44, content: 'Begin Your Journey', fill: L.primary, textColor: L.fgInverse, fontSize: 13, fontWeight: 600, fontFamily: 'Source Sans 3', borderColor: 'transparent', radius: 9999, opacity: 100 },
@@ -242,7 +249,9 @@ const DARK_OVERRIDES = {
   [L.white15]:        D.white15,
   [L.white25]:        D.white25,
   [L.white08]:        D.white08,
-  // Per-element overrides
+  // FIX 5: ctaBg maps to a mid-forest green in dark mode (not near-white)
+  [L.ctaBg]:          D.ctaBg,
+  // Per-element hardcoded rgba overrides
   'rgba(249,248,244,0.60)':  'rgba(232,228,220,0.50)',
   'rgba(249,248,244,0.65)':  'rgba(232,228,220,0.55)',
   'rgba(249,248,244,0.55)':  'rgba(232,228,220,0.45)',

@@ -55,11 +55,6 @@ export default function CanvasTopbar({ onBack, onInsertClick, onUndo, onRedo, ca
           <RotateCw size={13} />
           Redo
         </button>
-
-        <button className="flex items-center gap-1.5 px-3 py-2 text-sm text-[#5E6F8E] hover:text-[#2348D7] hover:bg-[#F3F7FF] rounded-xl transition-colors whitespace-nowrap">
-          <Database size={13} />
-          CMS
-        </button>
       </div>
 
       <div className="hidden md:flex items-center gap-2 absolute left-1/2 -translate-x-1/2">
@@ -85,10 +80,6 @@ export default function CanvasTopbar({ onBack, onInsertClick, onUndo, onRedo, ca
           title="Preview"
         >
           <Play size={13} />
-        </button>
-        <button className="hidden lg:flex items-center gap-1.5 px-3 py-2 text-sm text-[#5E6F8E] border border-[#D8E1F0] rounded-xl hover:bg-[#F3F7FF] transition-colors">
-          <Users size={13} />
-          Invite
         </button>
         <button
           onClick={onExport}

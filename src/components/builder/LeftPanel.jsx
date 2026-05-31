@@ -35,7 +35,7 @@ const TYPE_META = {
 
 function LayerRow({ node, depth = 0, selectedId, onSelect, hiddenIds, onToggleHide }) {
   const hasChildren = Array.isArray(node.children) && node.children.length > 0
-  const defaultCollapsed = depth > 2 && node.type !== 'desktop' && node.type !== 'content'
+  const defaultCollapsed = !node.virtual
   const [collapsed, setCollapsed] = useState(defaultCollapsed)
   const [hovered, setHovered] = useState(false)
   const rowRef = useRef(null)
