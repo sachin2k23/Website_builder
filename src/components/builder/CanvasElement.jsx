@@ -254,12 +254,55 @@ export default function CanvasElement({
   //    Falls back to type defaults if not yet stored.
   const typeDefaults = TYPE_BASELINES[element.type] || { width: 100, height: 40, fontSize: 14, paddingH: 0, paddingV: 0 }
 
-  const baselineWidth  = element.baselineWidth  ?? typeDefaults.width
-  const baselineHeight = element.baselineHeight ?? typeDefaults.height
-  const baselineFontSize  = element.baselineFontSize  ?? (element.fontSize ?? typeDefaults.fontSize)
-  const baselinePaddingH  = element.baselinePaddingH  ?? (element.paddingLeft  ?? element.paddingRight  ?? typeDefaults.paddingH)
-  const baselinePaddingV  = element.baselinePaddingV  ?? (element.paddingTop   ?? element.paddingBottom ?? typeDefaults.paddingV)
-  const baselineBorderRadius = element.baselineBorderRadius ?? (element.borderRadius ?? element.radius ?? 0)
+  // ── FIX: Seed baselines on mount if they are missing.
+  //
+  //    THE BUG: Without this, on first render scaleX = w / typeDefaults.width.
+  //    If the template element has a different size than the type default
+  //    (e.g. a heading at width=800 vs typeDefault=400), scaleU = 2.0,
+  //    inflating resolvedFontSize to 64px. The baselines were only written
+  //    inside handleUpdate, which only fires on user interaction — so the
+  //    inflated scale persisted until the first click/drag.
+  //
+  //    THE FIX: Write the baselines immediately at mount if they are absent,
+  //    using the element's *actual* current layout dimensions as the reference
+  //    point. This ensures scaleU = 1.0 on initial render for all elements
+  //    that don't yet have baselines stored (e.g. template-loaded elements).
+  //
+  //    We use a ref to ensure this only fires once per element identity,
+  //    even if the component re-renders before the async onUpdate propagates.
+  const baselineSeedFiredRef = useRef(false)
+  useEffect(() => {
+    // Only seed if baselines are genuinely missing and we haven't already fired
+    if (element.baselineWidth && element.baselineHeight) return
+    if (baselineSeedFiredRef.current) return
+    baselineSeedFiredRef.current = true
+
+    const currentLayout = getElementLayout(element, activeBreakpoint)
+    const seeded = {
+      ...element,
+      baselineWidth:        currentLayout.width,
+      baselineHeight:       currentLayout.height,
+      baselineFontSize:     element.fontSize      ?? typeDefaults.fontSize,
+      baselinePaddingH:     element.paddingLeft   ?? element.paddingRight  ?? typeDefaults.paddingH,
+      baselinePaddingV:     element.paddingTop    ?? element.paddingBottom ?? typeDefaults.paddingV,
+      baselineBorderRadius: element.borderRadius  ?? element.radius        ?? 0,
+    }
+    // Use silent update (no commit) — we're just writing metadata, not
+    // changing the visual layout. Pass { silent: true } so history stacks
+    // don't record this as a user action.
+    onUpdate(element.id, seeded, { silent: true })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [element.id]) // Only re-run if the element identity changes
+
+  // ── Read baselines: prefer stored values; fall back to current layout dims.
+  //    After the seed above propagates, element.baselineWidth will be set and
+  //    scaleU will stabilise at 1.0 for the initial state.
+  const baselineWidth  = element.baselineWidth  ?? w
+  const baselineHeight = element.baselineHeight ?? h
+  const baselineFontSize     = element.baselineFontSize     ?? (element.fontSize      ?? typeDefaults.fontSize)
+  const baselinePaddingH     = element.baselinePaddingH     ?? (element.paddingLeft   ?? element.paddingRight  ?? typeDefaults.paddingH)
+  const baselinePaddingV     = element.baselinePaddingV     ?? (element.paddingTop    ?? element.paddingBottom ?? typeDefaults.paddingV)
+  const baselineBorderRadius = element.baselineBorderRadius ?? (element.borderRadius  ?? element.radius        ?? 0)
 
   // ── Current scale factors relative to baseline ──────────────────────────────
   const scaleX = baselineWidth  > 0 ? w / baselineWidth  : 1
@@ -296,6 +339,9 @@ export default function CanvasElement({
 
     // Seed baselines once — on the very first resize/drag commit — so all future
     // proportional scaling has a stable reference point.
+    // NOTE: After the mount-time seed above, this branch should rarely fire for
+    // new elements, but it's kept as a safety net for any element that slips
+    // through (e.g. created programmatically without triggering the mount effect).
     if (!updated.baselineWidth || !updated.baselineHeight) {
       const currentLayout = getElementLayout(updated, activeBreakpoint)
       updated = {

@@ -4,16 +4,6 @@
  * Single source of truth for breakpoint definitions and per-breakpoint
  * layout resolution. Elements store their desktop layout as the base.
  * Tablet / phone / custom overrides are stored in element.breakpoints[bp].
- *
- * Structure of element.breakpoints:
- * {
- *   tablet:  { x, y, width, height },  // only the keys that differ
- *   phone:   { x, y, width, height },
- *   custom:  { x, y, width, height },
- * }
- *
- * Desktop always reads from the root x/y/width/height — never from
- * element.breakpoints.desktop — so existing data is never broken.
  */
 
 export const BREAKPOINTS = [
@@ -23,26 +13,16 @@ export const BREAKPOINTS = [
   { id: 'custom',  label: 'Custom',  width: null  },
 ]
 
-/**
- * Returns the canvas width for a given breakpoint id.
- * For 'custom' the caller supplies customWidth.
- */
 export function getCanvasWidth(breakpointId, canvasSettings, customWidth = 800) {
   switch (breakpointId) {
-    case 'desktop': return canvasSettings?.width  || 1200
+    case 'desktop': return canvasSettings?.width || 1200
     case 'tablet':  return 768
     case 'phone':   return 390
     case 'custom':  return customWidth
-    default:        return canvasSettings?.width  || 1200
+    default:        return canvasSettings?.width || 1200
   }
 }
 
-/**
- * Read the effective layout for an element at a given breakpoint.
- * Falls through: phone → tablet → desktop (root).
- *
- * Returns { x, y, width, height } — always fully resolved.
- */
 export function getElementLayout(element, breakpointId) {
   const base = {
     x:      element.x      ?? 0,
@@ -55,413 +35,470 @@ export function getElementLayout(element, breakpointId) {
 
   const bpOverrides = element.breakpoints ?? {}
 
-  // Fall-through chain: phone → tablet → desktop
   if (breakpointId === 'phone') {
-    return {
-      ...base,
-      ...(bpOverrides.tablet ?? {}),
-      ...(bpOverrides.phone  ?? {}),
-    }
+    return { ...base, ...(bpOverrides.tablet ?? {}), ...(bpOverrides.phone ?? {}) }
   }
-
   if (breakpointId === 'tablet') {
-    return {
-      ...base,
-      ...(bpOverrides.tablet ?? {}),
-    }
+    return { ...base, ...(bpOverrides.tablet ?? {}) }
   }
-
-  // custom: use custom override if present, otherwise inherit tablet.
-  return {
-    ...base,
-    ...(bpOverrides.tablet ?? {}),
-    ...(bpOverrides.custom ?? {}),
-  }
+  return { ...base, ...(bpOverrides.tablet ?? {}), ...(bpOverrides.custom ?? {}) }
 }
 
 export function getResponsiveValue(element, breakpointId, key, fallback) {
-  const baseValue = element[key] ?? fallback
+  const baseValue   = element[key] ?? fallback
   const bpOverrides = element.breakpoints ?? {}
-
   if (breakpointId === 'desktop') return baseValue
-
-  if (breakpointId === 'phone') {
-    return bpOverrides.phone?.[key] ?? bpOverrides.tablet?.[key] ?? baseValue
-  }
-
-  if (breakpointId === 'tablet') {
-    return bpOverrides.tablet?.[key] ?? baseValue
-  }
-
+  if (breakpointId === 'phone')   return bpOverrides.phone?.[key]  ?? bpOverrides.tablet?.[key] ?? baseValue
+  if (breakpointId === 'tablet')  return bpOverrides.tablet?.[key] ?? baseValue
   return bpOverrides.custom?.[key] ?? bpOverrides.tablet?.[key] ?? baseValue
 }
 
-/**
- * Get responsive font size with automatic scaling for smaller breakpoints
- * Desktop: 100% (base size)
- * Tablet: 90% of base size
- * Phone: 80% of base size
- */
 export function getResponsiveFontSize(element, breakpointId, fallback = 16) {
-  const baseFontSize = element.fontSize ?? fallback
+  const base        = element.fontSize ?? fallback
   const bpOverrides = element.breakpoints ?? {}
-
-  let fontSize = baseFontSize
-  
-  if (breakpointId === 'desktop') {
-    fontSize = baseFontSize
-  } else if (breakpointId === 'tablet') {
-    fontSize = bpOverrides.tablet?.fontSize ?? Math.round(baseFontSize * 0.9)
-  } else if (breakpointId === 'phone') {
-    fontSize = bpOverrides.phone?.fontSize ?? Math.round(baseFontSize * 0.8)
-  } else {
-    fontSize = bpOverrides.custom?.fontSize ?? Math.round(baseFontSize * 0.9)
-  }
-
-  return fontSize
+  if (breakpointId === 'desktop') return base
+  if (breakpointId === 'tablet')  return bpOverrides.tablet?.fontSize ?? Math.round(base * 0.9)
+  if (breakpointId === 'phone')   return bpOverrides.phone?.fontSize  ?? Math.round(base * 0.8)
+  return bpOverrides.custom?.fontSize ?? Math.round(base * 0.9)
 }
 
-/**
- * Produce an updated element after a layout change at a given breakpoint.
- * Desktop edits go to root keys. Other breakpoints write into element.breakpoints[bp].
- */
 export function setElementLayout(element, breakpointId, changes) {
-  if (breakpointId === 'desktop') {
-    return { ...element, ...changes }
-  }
-
+  if (breakpointId === 'desktop') return { ...element, ...changes }
   return {
     ...element,
     breakpoints: {
       ...(element.breakpoints ?? {}),
-      [breakpointId]: {
-        ...(element.breakpoints?.[breakpointId] ?? {}),
-        ...changes,
-      },
+      [breakpointId]: { ...(element.breakpoints?.[breakpointId] ?? {}), ...changes },
     },
   }
 }
 
-/**
- * Auto-generate sensible tablet / phone defaults for a freshly inserted
- * element based on its desktop layout and the canvas width.
- *
- * Rules:
- *   Tablet  — if element right-edge exceeds tablet canvas, clamp width and
- *             reposition to stay in-bounds. Maintain y.
- *   Phone   — full-width minus 24 px margin on each side, stack vertically
- *             preserving relative order (y is kept so order is implicit).
- */
 export function generateResponsiveDefaults(element, desktopCanvasWidth = 1200) {
-  const tabletWidth  = 768
-  const phoneWidth   = 390
-  const phoneMargin  = 24
-
   const deskX = element.x      ?? 0
   const deskY = element.y      ?? 0
   const deskW = element.width  ?? 200
   const deskH = element.height ?? 100
-
-  // ── Tablet ─────────────────────────────────────────────────────────────────
-  // Scale x proportionally, clamp width if it overflows
-  const tabletScale = tabletWidth / desktopCanvasWidth
+  const tabletScale = 768 / desktopCanvasWidth
   let tabX = Math.round(deskX * tabletScale)
   let tabW = Math.round(deskW * tabletScale)
-
-  // Don't let element overflow tablet canvas
-  if (tabX + tabW > tabletWidth - 16) {
-    tabW = Math.max(40, tabletWidth - tabX - 16)
-  }
+  if (tabX + tabW > 768 - 16) tabW = Math.max(40, 768 - tabX - 16)
   if (tabX < 0) tabX = 0
-
-  // ── Phone ──────────────────────────────────────────────────────────────────
-  // Most elements go full-width with side margins.
-  // Very small elements (buttons, checkboxes, inputs < 200px) keep their size
-  // but are left-aligned within the margin.
-  const isNarrow = deskW < 200
-  const phoneX   = phoneMargin
-  const phoneW   = isNarrow
-    ? Math.min(deskW, phoneWidth - phoneMargin * 2)
-    : phoneWidth - phoneMargin * 2
-
+  const phoneW = deskW < 200
+    ? Math.min(deskW, 390 - 48)
+    : 390 - 48
   return {
     ...element,
     breakpoints: {
       ...(element.breakpoints ?? {}),
-      tablet: element.breakpoints?.tablet ?? { x: tabX, y: deskY, width: tabW, height: deskH },
-      phone:  element.breakpoints?.phone  ?? { x: phoneX, y: deskY, width: phoneW, height: deskH },
-      custom: element.breakpoints?.custom ?? { x: tabX, y: deskY, width: tabW, height: deskH },
+      tablet: element.breakpoints?.tablet ?? { x: tabX, y: deskY, width: tabW,  height: deskH },
+      phone:  element.breakpoints?.phone  ?? { x: 24,   y: deskY, width: phoneW, height: deskH },
+      custom: element.breakpoints?.custom ?? { x: tabX, y: deskY, width: tabW,  height: deskH },
     },
   }
 }
 
-/**
- * Apply generateResponsiveDefaults to a full tree of elements.
- * Skips elements that already have breakpoint overrides set.
- */
 export function applyResponsiveDefaultsToTree(tree, desktopCanvasWidth = 1200) {
   return tree.map(el => {
-    const hasOverrides =
-      el.breakpoints?.tablet || el.breakpoints?.phone
-    if (hasOverrides) return el
+    if (el.breakpoints?.tablet || el.breakpoints?.phone) return el
     return generateResponsiveDefaults(el, desktopCanvasWidth)
   })
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const PHONE_W      = 390
+const PHONE_MARGIN = 20
+const PHONE_INNER  = PHONE_W - PHONE_MARGIN * 2  // 350
+
+const TABLET_W     = 768
+
 const TEXT_TYPES = new Set(['heading', 'paragraph', 'text', 'link', 'label'])
 const FORM_TYPES = new Set(['button', 'input', 'textarea', 'select', 'checkbox'])
-const BOX_TYPES = new Set(['container', 'section', 'frame', 'card'])
+const BOX_TYPES  = new Set(['container', 'section', 'frame', 'card'])
 
-const clamp = (value, min, max) => Math.min(Math.max(value, min), max)
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi)
 
-function baseBox(element) {
-  return {
-    x: element.x ?? 0,
-    y: element.y ?? 0,
-    width: element.width ?? 200,
-    height: element.height ?? 100,
-  }
-}
+// ─── Font scaling ─────────────────────────────────────────────────────────────
 
-function containsBox(parent, child, tolerance = 3) {
-  return (
-    child.x >= parent.x - tolerance &&
-    child.y >= parent.y - tolerance &&
-    child.x + child.width <= parent.x + parent.width + tolerance &&
-    child.y + child.height <= parent.y + parent.height + tolerance
-  )
-}
-
-function getScaledFontSize(element, breakpointId) {
-  if (!element.fontSize) return undefined
-
+function scaleFontPhone(element) {
   const base = element.fontSize
-  if (breakpointId === 'tablet') {
-    if (element.type === 'heading') return clamp(Math.round(base * (base >= 48 ? 0.82 : 0.9)), 14, 56)
-    return clamp(Math.round(base * 0.94), 10, 18)
+  if (!base) return null
+  if (element.type === 'heading') {
+    if (base >= 72) return clamp(Math.round(base * 0.40), 22, 40)
+    if (base >= 56) return clamp(Math.round(base * 0.50), 22, 38)
+    if (base >= 40) return clamp(Math.round(base * 0.58), 20, 34)
+    if (base >= 28) return clamp(Math.round(base * 0.72), 18, 30)
+    return clamp(Math.round(base * 0.85), 16, 26)
   }
-
-  if (element.type === 'heading') return clamp(Math.round(base * (base >= 56 ? 0.62 : base >= 36 ? 0.82 : 0.9)), 16, 42)
-  if (element.type === 'label') return clamp(Math.round(base * 0.92), 10, 13)
-  if (FORM_TYPES.has(element.type)) return clamp(Math.round(base * 0.9), 12, 15)
-  return clamp(Math.round(base * 0.88), 11, 16)
+  if (element.type === 'label')         return clamp(Math.round(base * 0.88), 10, 13)
+  if (FORM_TYPES.has(element.type))     return clamp(Math.round(base * 0.90), 12, 15)
+  return clamp(Math.round(base * 0.86), 12, 16)
 }
 
-function estimateTextHeight(element, width, fontSize) {
-  if (!TEXT_TYPES.has(element.type)) return element.height ?? 40
-
-  const content = String(element.content || '')
-  const lineHeight = element.lineHeight || (element.type === 'heading' ? 1.18 : 1.6)
-  const usableWidth = Math.max(24, width - 8)
-  const charsPerLine = Math.max(4, Math.floor(usableWidth / Math.max(6, fontSize * 0.54)))
-  const lines = content.split('\n').reduce((count, line) => {
-    const text = line.trim() || ' '
-    return count + Math.max(1, Math.ceil(text.length / charsPerLine))
-  }, 0)
-
-  return Math.ceil(lines * fontSize * lineHeight + 8)
-}
-
-function responsiveOverrides(element, breakpointId, width, fallbackHeight) {
-  const fontSize = getScaledFontSize(element, breakpointId)
-  const overrides = fontSize ? { fontSize } : {}
-
-  if (TEXT_TYPES.has(element.type)) {
-    overrides.height = Math.max(
-      Math.round((fallbackHeight ?? element.height ?? 40) * (breakpointId === 'phone' ? 0.9 : 1)),
-      estimateTextHeight(element, width, fontSize || element.fontSize || 16),
-    )
+function scaleFontTablet(element) {
+  const base = element.fontSize
+  if (!base) return null
+  if (element.type === 'heading') {
+    if (base >= 56) return clamp(Math.round(base * 0.72), 24, 48)
+    if (base >= 36) return clamp(Math.round(base * 0.84), 20, 44)
+    return clamp(Math.round(base * 0.92), 16, 36)
   }
-
-  return overrides
+  if (element.type === 'label')         return clamp(Math.round(base * 0.94), 10, 13)
+  if (FORM_TYPES.has(element.type))     return clamp(Math.round(base * 0.96), 12, 16)
+  return clamp(Math.round(base * 0.94), 12, 16)
 }
 
-function isFullBleedContainer(element, desktopCanvasWidth) {
-  const box = baseBox(element)
-  return BOX_TYPES.has(element.type) && box.x <= 4 && box.width >= desktopCanvasWidth - 8
-}
-
-function getPhoneItemHeight(element, width) {
-  const box = baseBox(element)
-  if (TEXT_TYPES.has(element.type)) {
-    const fontSize = getScaledFontSize(element, 'phone') || element.fontSize || 16
-    return Math.max(Math.round(box.height * 0.9), estimateTextHeight(element, width, fontSize))
-  }
-  if (element.type === 'image' || element.type === 'video') {
-    return Math.max(96, Math.round(width * (box.height / Math.max(1, box.width))))
-  }
-  return box.height
-}
+// ─── Text height estimation ───────────────────────────────────────────────────
 
 /**
- * Auto-generate tablet + phone breakpoints for a desktop-only element tree.
+ * Estimate how tall a text element will be at a given container width + font size.
  *
- * Tablet: scales x/width proportionally to the tablet canvas (768).
- * Phone:  groups elements into rows by overlapping y-range, then re-flows
- *         each row top-to-bottom — every element becomes full-width and
- *         stacked, so no two elements ever overlap.
+ * Uses 0.50× fontSize as average char width — slightly conservative so we
+ * never underestimate and produce boxes that clip their content.
+ */
+function estimateTextHeight(element, containerW, fontSize) {
+  if (!TEXT_TYPES.has(element.type)) return element.height ?? 40
+
+  const content    = String(element.content ?? element.placeholder ?? '').trim()
+  if (!content) {
+    const lh = element.lineHeight || (element.type === 'heading' ? 1.2 : 1.6)
+    return Math.ceil(fontSize * lh) + 16
+  }
+
+  const lineHeight  = element.lineHeight || (element.type === 'heading' ? 1.2 : 1.6)
+  const padH        = Math.max(0, (element.paddingLeft ?? 0) + (element.paddingRight ?? 0))
+  const usable      = Math.max(20, containerW - padH - 8)
+  const avgCharW    = Math.max(4, fontSize * 0.50)
+  const charsPerLine = Math.max(3, Math.floor(usable / avgCharW))
+
+  const lines = content.split('\n').reduce((sum, line) => {
+    return sum + Math.max(1, Math.ceil((line.length || 1) / charsPerLine))
+  }, 0)
+
+  const padV = Math.max(0, (element.paddingTop ?? 0) + (element.paddingBottom ?? 0))
+  return Math.ceil(lines * fontSize * lineHeight) + padV + 8
+}
+
+// ─── Per-element phone height ─────────────────────────────────────────────────
+
+function phoneElemHeight(element, containerW) {
+  const dh = element.height ?? 40
+
+  if (TEXT_TYPES.has(element.type)) {
+    const fs = scaleFontPhone(element) ?? element.fontSize ?? 16
+    return Math.max(Math.round(dh * 0.85), estimateTextHeight(element, containerW, fs))
+  }
+  if (element.type === 'image' || element.type === 'video') {
+    const ratio = dh / Math.max(1, element.width ?? 200)
+    return clamp(Math.round(containerW * ratio), 80, 400)
+  }
+  if (element.type === 'button')   return clamp(dh, 40, 56)
+  if (element.type === 'input')    return clamp(dh, 40, 52)
+  if (element.type === 'select')   return clamp(dh, 40, 52)
+  if (element.type === 'textarea') return clamp(dh, 80, 200)
+  if (element.type === 'checkbox') return clamp(dh, 24, 36)
+  if (element.type === 'divider')  return dh || 2
+  if (element.type === 'icon') {
+    const side = Math.min(element.width ?? 48, element.height ?? 48)
+    return clamp(Math.round(side * 0.75), 24, 80)
+  }
+  return clamp(dh, 20, 500)
+}
+
+// ─── Gap between consecutive phone elements ───────────────────────────────────
+
+function phoneGap(element) {
+  if (element.type === 'divider') return 8
+  if (element.type === 'label')   return 4
+  if (FORM_TYPES.has(element.type)) return 12
+  if (element.type === 'heading') return 8
+  return 16
+}
+
+// ─── Main autoResponsive ──────────────────────────────────────────────────────
+
+/**
+ * Generate tablet + phone breakpoints for every element in the tree.
  *
- * Existing breakpoint overrides on an element are preserved.
+ * PHONE STRATEGY — three rules, applied strictly:
+ *
+ *   1. SORT  — All elements are sorted by (desktopY, desktopX). This converts
+ *              the 2-D desktop canvas into a 1-D reading-order list.
+ *
+ *   2. STACK — Every element gets y = cursor. The cursor advances by the
+ *              element's phone height + a gap. No element ever derives its
+ *              phone Y from its desktop Y.
+ *
+ *   3. WRAP  — Full-bleed containers (sections) get their phone position set
+ *              AFTER their children are placed, by taking the min/max of their
+ *              children's phone bounds. This guarantees sections always wrap
+ *              exactly their content.
+ *
+ * LEAF ONLY — Only leaf elements (non-container types, or containers with no
+ * children) participate in the stacking pass. Non-full-bleed containers
+ * (cards, frames) are also given their own stacking slot, and their children
+ * are re-stacked inside them.
+ *
+ * TABLET STRATEGY — proportional X/width scaling to 768 canvas. Font sizes
+ * scaled down modestly. Full-bleed containers stretch to full tablet width.
  */
 export function autoResponsive(elements, desktopCanvasWidth = 1200) {
-  const tabletWidth = 768
-  const phoneWidth  = 390
-  const phoneMargin = 24
-  const phoneInner  = phoneWidth - phoneMargin * 2
-  const tabletScale = tabletWidth / desktopCanvasWidth
+  if (!elements || elements.length === 0) return elements
 
-  const boxes = new Map(elements.map(element => [element.id, baseBox(element)]))
-  const fullBleedIds = new Set(elements.filter(element => isFullBleedContainer(element, desktopCanvasWidth)).map(element => element.id))
-  const groupedChildIds = new Set()
-  const groups = []
+  const tabletScale = TABLET_W / desktopCanvasWidth
 
-  elements.forEach(container => {
-    if (!BOX_TYPES.has(container.type) || fullBleedIds.has(container.id)) return
-    const containerBox = boxes.get(container.id)
-    const children = elements.filter(child => {
-      if (child.id === container.id || fullBleedIds.has(child.id) || BOX_TYPES.has(child.type)) return false
-      return containsBox(containerBox, boxes.get(child.id))
+  // ── 1. Classify ────────────────────────────────────────────────────────────
+
+  // Full-bleed sections: box-type elements that span the full canvas width
+  const isFullBleed = (el) =>
+    BOX_TYPES.has(el.type) &&
+    (el.x ?? 0) <= 8 &&
+    (el.width ?? 0) >= desktopCanvasWidth - 16
+
+  const fullBleedSet = new Set(elements.filter(isFullBleed).map(el => el.id))
+
+  // Non-full-bleed containers: cards, frames, etc.
+  const isNonFullBleedContainer = (el) =>
+    BOX_TYPES.has(el.type) && !fullBleedSet.has(el.id)
+
+  // Find the parent non-full-bleed container for a given element (if any)
+  const parentOf = new Map() // childId → parentEl
+  elements.forEach(parent => {
+    if (!isNonFullBleedContainer(parent)) return
+    const px = parent.x ?? 0, py = parent.y ?? 0
+    const pr = px + (parent.width  ?? 0)
+    const pb = py + (parent.height ?? 0)
+    elements.forEach(child => {
+      if (child.id === parent.id) return
+      if (BOX_TYPES.has(child.type)) return // don't nest containers
+      const cx = child.x ?? 0, cy = child.y ?? 0
+      const cr = cx + (child.width  ?? 0)
+      const cb = cy + (child.height ?? 0)
+      const inside = cx >= px - 6 && cy >= py - 6 && cr <= pr + 6 && cb <= pb + 6
+      if (inside && !parentOf.has(child.id)) {
+        parentOf.set(child.id, parent)
+      }
     })
-    if (!children.length) return
-    children.forEach(child => groupedChildIds.add(child.id))
-    groups.push({ type: 'group', element: container, children, box: containerBox })
   })
 
-  const groupByContainerId = new Map(groups.map(group => [group.element.id, group]))
-  const phoneLayouts = new Map()
-  const sectionBounds = new Map()
-  const sections = elements
-    .filter(element => fullBleedIds.has(element.id))
-    .sort((a, b) => (a.y ?? 0) - (b.y ?? 0))
+  // ── 2. Build sorted reading order ─────────────────────────────────────────
+  //
+  // Sort by desktop Y first, then X. This is the order elements will be
+  // stacked on phone.
 
-  const topLevelItems = elements
-    .filter(element => !fullBleedIds.has(element.id) && !groupedChildIds.has(element.id))
-    .map(element => groupByContainerId.get(element.id) || { type: 'single', element, box: boxes.get(element.id) })
-    .sort((a, b) => (a.box.y === b.box.y ? a.box.x - b.box.x : a.box.y - b.box.y))
-
-  const findSection = (itemBox) => sections.find(section => {
-    const sectionBox = boxes.get(section.id)
-    return itemBox.y >= sectionBox.y - 4 && itemBox.y < sectionBox.y + sectionBox.height - 4
+  const sorted = [...elements].sort((a, b) => {
+    const ay = a.y ?? 0, by_ = b.y ?? 0
+    if (ay !== by_) return ay - by_
+    return (a.x ?? 0) - (b.x ?? 0)
   })
+
+  // ── 3. Phone stacking pass ────────────────────────────────────────────────
+
+  // phonePos: the final phone layout per element id
+  const phonePos = new Map()
 
   let cursor = 0
-  let currentSectionId = null
+  let lastSectionId = null
 
-  topLevelItems.forEach(item => {
-    const section = findSection(item.box)
-    const sectionId = section?.id ?? null
+  // We process elements in reading order. We skip:
+  //   - Full-bleed sections (positioned after their children)
+  //   - Children of non-full-bleed containers (positioned inside their parent)
+  //
+  // Non-full-bleed containers ARE processed here — their children are
+  // sub-stacked inside them.
 
-    if (sectionId !== currentSectionId) {
-      if (cursor > 0) cursor += 28
-      currentSectionId = sectionId
-      if (sectionId && !sectionBounds.has(sectionId)) {
-        sectionBounds.set(sectionId, { start: Math.max(0, cursor - 18), end: cursor })
+  sorted.forEach(el => {
+    // Skip full-bleed sections — they'll be sized around their children
+    if (fullBleedSet.has(el.id)) return
+
+    // Skip children of non-full-bleed containers — handled inside parent
+    if (parentOf.has(el.id)) return
+
+    // ── Detect section change for extra gap ──────────────────────────────────
+    const mySection = findParentSection(el, elements, fullBleedSet)
+    if (mySection?.id !== lastSectionId) {
+      if (cursor > 0) cursor += 24
+      lastSectionId = mySection?.id ?? null
+    }
+
+    // ── Non-full-bleed container: stack its children inside ──────────────────
+    if (isNonFullBleedContainer(el)) {
+      const children = sorted.filter(c => parentOf.get(c.id)?.id === el.id)
+
+      if (children.length === 0) {
+        const h = phoneElemHeight(el, PHONE_INNER)
+        phonePos.set(el.id, { x: PHONE_MARGIN, y: cursor, width: PHONE_INNER, height: h })
+        cursor += h + 16
+        return
       }
-    }
 
-    if (item.type === 'group') {
-      const groupX = phoneMargin
-      const groupY = cursor
-      const groupW = phoneInner
-      const containerBox = item.box
-      const scaleX = groupW / Math.max(1, containerBox.width)
-      let groupBottom = Math.round(containerBox.height * Math.min(1, scaleX))
+      // Sub-stack children inside the container
+      const CPAD = 16
+      let childCursor = cursor + CPAD
+      const innerW = PHONE_INNER - CPAD * 2
 
-      item.children.forEach(child => {
-        const childBox = boxes.get(child.id)
-        const relX = childBox.x - containerBox.x
-        const relY = childBox.y - containerBox.y
-        const rightPad = containerBox.x + containerBox.width - (childBox.x + childBox.width)
-        const childX = groupX + Math.round(relX * scaleX)
-        const childW = Math.max(40, groupW - Math.round((relX + rightPad) * scaleX))
-        const childH = getPhoneItemHeight(child, childW)
-        const childY = groupY + Math.round(relY * 0.92)
-
-        phoneLayouts.set(child.id, {
-          x: childX,
-          y: childY,
-          width: childW,
-          height: childH,
-          ...responsiveOverrides(child, 'phone', childW, childH),
+      children
+        .sort((a, b) => (a.y ?? 0) !== (b.y ?? 0) ? (a.y ?? 0) - (b.y ?? 0) : (a.x ?? 0) - (b.x ?? 0))
+        .forEach(child => {
+          const childW = computeWidth(child, innerW)
+          const childH = phoneElemHeight(child, childW)
+          const childX = PHONE_MARGIN + CPAD + (childW < innerW ? Math.round((innerW - childW) / 2) : 0)
+          const fontOvr = scaleFontPhone(child)
+          phonePos.set(child.id, {
+            x: childX,
+            y: childCursor,
+            width: childW,
+            height: childH,
+            ...(fontOvr != null ? { fontSize: fontOvr } : {}),
+          })
+          childCursor += childH + phoneGap(child)
         })
-        groupBottom = Math.max(groupBottom, childY - groupY + childH + Math.max(18, Math.round((containerBox.height - relY - childBox.height) * 0.6)))
-      })
 
-      phoneLayouts.set(item.element.id, {
-        x: groupX,
-        y: groupY,
-        width: groupW,
-        height: Math.max(80, groupBottom),
-      })
-      cursor += Math.max(80, groupBottom) + 20
-    } else {
-      const element = item.element
-      const width = element.type === 'divider' ? phoneInner : phoneInner
-      const height = getPhoneItemHeight(element, width)
-      phoneLayouts.set(element.id, {
-        x: phoneMargin,
-        y: cursor,
-        width,
-        height,
-        ...responsiveOverrides(element, 'phone', width, height),
-      })
-      cursor += height + (FORM_TYPES.has(element.type) ? 14 : 16)
-    }
-
-    if (sectionId) {
-      const bounds = sectionBounds.get(sectionId)
-      bounds.end = Math.max(bounds.end, cursor + 18)
-    }
-  })
-
-  sections.forEach(section => {
-    const bounds = sectionBounds.get(section.id)
-    if (bounds) {
-      phoneLayouts.set(section.id, {
-        x: 0,
-        y: bounds.start,
-        width: phoneWidth,
-        height: Math.max(60, bounds.end - bounds.start),
-      })
+      const containerH = childCursor - cursor + CPAD
+      phonePos.set(el.id, { x: PHONE_MARGIN, y: cursor, width: PHONE_INNER, height: containerH })
+      cursor += containerH + 16
       return
     }
 
-    const box = boxes.get(section.id)
-    phoneLayouts.set(section.id, {
-      x: 0,
-      y: Math.round(box.y * 0.6),
-      width: phoneWidth,
-      height: Math.max(60, Math.round(box.height * 0.6)),
+    // ── Regular leaf element ─────────────────────────────────────────────────
+    const elW  = computeWidth(el, PHONE_INNER)
+    const elH  = phoneElemHeight(el, elW)
+    const elX  = elW < PHONE_INNER - 10
+      ? Math.round((PHONE_W - elW) / 2)  // centre narrow elements
+      : PHONE_MARGIN
+    const fontOvr = scaleFontPhone(el)
+
+    phonePos.set(el.id, {
+      x: elX,
+      y: cursor,
+      width: elW,
+      height: elH,
+      ...(fontOvr != null ? { fontSize: fontOvr } : {}),
     })
+
+    cursor += elH + phoneGap(el)
   })
 
+  // ── 4. Size full-bleed sections around their children ─────────────────────
+
+  const SPADY = 24, SPADB = 28
+
+  elements
+    .filter(el => fullBleedSet.has(el.id))
+    .sort((a, b) => (a.y ?? 0) - (b.y ?? 0))
+    .forEach(section => {
+      // Gather phone Y/height for every element whose desktop position is
+      // inside this section (both direct children and container children)
+      const sectionBox = { x: section.x ?? 0, y: section.y ?? 0, width: section.width ?? 0, height: section.height ?? 0 }
+
+      let minY = Infinity, maxY = -Infinity
+      phonePos.forEach((pos, id) => {
+        const el = elements.find(e => e.id === id)
+        if (!el) return
+        const ely = el.y ?? 0
+        if (ely >= sectionBox.y - 8 && ely < sectionBox.y + sectionBox.height - 8) {
+          minY = Math.min(minY, pos.y)
+          maxY = Math.max(maxY, pos.y + pos.height)
+        }
+      })
+
+      if (minY === Infinity) {
+        // No children found — proportional fallback
+        const ratio = (desktopCanvasWidth > 0)
+          ? PHONE_INNER / desktopCanvasWidth
+          : 1
+        phonePos.set(section.id, {
+          x: 0,
+          y: cursor,
+          width: PHONE_W,
+          height: Math.max(60, Math.round(sectionBox.height * 0.55)),
+        })
+        cursor += Math.max(60, Math.round(sectionBox.height * 0.55)) + 16
+        return
+      }
+
+      phonePos.set(section.id, {
+        x: 0,
+        y: Math.max(0, minY - SPADY),
+        width: PHONE_W,
+        height: maxY - minY + SPADY + SPADB,
+      })
+    })
+
+  // ── 5. Tablet layout ───────────────────────────────────────────────────────
+
+  function buildTablet(el) {
+    if (fullBleedSet.has(el.id)) {
+      return { x: 0, y: el.y ?? 0, width: TABLET_W, height: el.height ?? 100 }
+    }
+    let tx = Math.round((el.x ?? 0) * tabletScale)
+    let tw = Math.round((el.width  ?? 200) * tabletScale)
+    if (tx + tw > TABLET_W) tw = Math.max(40, TABLET_W - tx)
+    if (tx < 0) tx = 0
+
+    let th = el.height ?? 40
+    if (TEXT_TYPES.has(el.type)) {
+      const fs = scaleFontTablet(el) ?? el.fontSize ?? 16
+      th = Math.max(th, estimateTextHeight(el, tw, fs))
+    }
+    return { x: tx, y: el.y ?? 0, width: tw, height: th }
+  }
+
+  // ── 6. Assemble final output ───────────────────────────────────────────────
+
   return elements.map(el => {
-    if (el.breakpoints?.tablet || el.breakpoints?.phone) return el
+    if (el.breakpoints?.tablet && el.breakpoints?.phone) return el
 
-    const deskX = el.x ?? 0
-    const deskY = el.y ?? 0
-    const deskW = el.width ?? 200
-    const deskH = el.height ?? 100
+    const tb    = buildTablet(el)
+    const tabSt = scaleFontTablet(el)
+    const phone = phonePos.get(el.id)
 
-    // Tablet: proportional scale, clamp inside canvas.
-    let tabX = Math.round(deskX * tabletScale)
-    let tabW = Math.round(deskW * tabletScale)
-    if (tabX + tabW > tabletWidth) tabW = Math.max(40, tabletWidth - tabX)
-    if (tabX < 0) tabX = 0
-    const tabletHeight = TEXT_TYPES.has(el.type)
-      ? Math.max(deskH, estimateTextHeight(el, tabW, getScaledFontSize(el, 'tablet') || el.fontSize || 16))
-      : deskH
-    const phoneLayout = phoneLayouts.get(el.id) ?? { x: phoneMargin, y: deskY, width: phoneInner, height: getPhoneItemHeight(el, phoneInner) }
+    const tabletOverride = {
+      x: tb.x, y: tb.y, width: tb.width, height: tb.height,
+      ...(tabSt != null ? { fontSize: tabSt } : {}),
+    }
+
+    const phoneOverride = phone
+      ? { x: phone.x, y: phone.y, width: phone.width, height: phone.height, ...(phone.fontSize != null ? { fontSize: phone.fontSize } : {}) }
+      : { x: PHONE_MARGIN, y: 0, width: PHONE_INNER, height: phoneElemHeight(el, PHONE_INNER) }
 
     return {
       ...el,
       breakpoints: {
         ...(el.breakpoints ?? {}),
-        tablet: { x: tabX, y: deskY, width: tabW, height: tabletHeight, ...responsiveOverrides(el, 'tablet', tabW, tabletHeight) },
-        phone:  phoneLayout,
-        custom: { x: tabX, y: deskY, width: tabW, height: tabletHeight, ...responsiveOverrides(el, 'tablet', tabW, tabletHeight) },
+        tablet: el.breakpoints?.tablet ?? tabletOverride,
+        phone:  el.breakpoints?.phone  ?? phoneOverride,
+        custom: el.breakpoints?.custom ?? tabletOverride,
       },
     }
   })
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Compute phone width for an element. Most elements go full PHONE_INNER.
+ *  Small elements (icon, narrow button, checkbox) keep a natural width. */
+function computeWidth(el, maxW) {
+  if (el.type === 'icon') {
+    const side = Math.min(el.width ?? 48, el.height ?? 48)
+    return clamp(Math.round(side * 0.75), 24, 80)
+  }
+  if (el.type === 'checkbox') return Math.min(el.width ?? maxW, maxW)
+  if (el.type === 'divider')  return maxW
+  if (el.type === 'image' || el.type === 'video') return maxW
+  // Narrow elements that aren't text (e.g. compact buttons < 120px wide)
+  if ((el.width ?? maxW) <= 120 && !TEXT_TYPES.has(el.type)) {
+    return Math.min(el.width ?? maxW, maxW)
+  }
+  return maxW
+}
+
+/** Find the full-bleed section that contains this element (by desktop Y). */
+function findParentSection(el, allElements, fullBleedSet) {
+  const ely = el.y ?? 0
+  return allElements.find(s => {
+    if (!fullBleedSet.has(s.id)) return false
+    const sy = s.y ?? 0
+    return ely >= sy - 8 && ely < sy + (s.height ?? 0) - 8
+  }) ?? null
+}
