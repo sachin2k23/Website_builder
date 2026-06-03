@@ -4,6 +4,11 @@
 // Dark-mode default with full light-mode toggle support.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { applySmartResponsive } from '../utils/responsive'
+
+const withResponsive = (elements, width = 1200) =>
+  applySmartResponsive(elements, width)
+
 // ---------------------------------------------------------------------------
 // COLOR TOKENS
 // ---------------------------------------------------------------------------

@@ -4,9 +4,11 @@
 // Supports: light (pastel-retro) and dark (neon-void) themes
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { applySmartResponsive } from '../utils/responsive'
+
 // ── Base element definitions (dark theme is canonical) ────────────────────────
 
-export const vaporWaveFestElements = [
+const vaporWaveFestBaseElements = [
 
   // ── Navigation ──────────────────────────────────────────────────────────────
   { id: 'vw-nav-bg',      type: 'container', name: 'Navigation Bar',       x: 0,    y: 0,    width: 1200, height: 72,  fill: 'rgba(9,0,20,0.92)',        borderColor: '#2D1B4E',              radius: 0,   opacity: 100 },
@@ -164,6 +166,12 @@ export const vaporWaveFestElements = [
   { id: 'vw-footer-social',type: 'paragraph', name: 'Footer Social',        x: 780,  y: 3680, width: 320,  height: 22,  content: 'INSTAGRAM     TWITTER     SPOTIFY', fontSize: 11, fontFamily: 'Share Tech Mono, monospace', textColor: 'rgba(224,224,224,0.35)', textAlign: 'right', opacity: 100 },
   { id: 'vw-footer-copy',  type: 'paragraph', name: 'Footer Copyright',     x: 100,  y: 3828, width: 500,  height: 20,  content: '© 2026 NEON FEST PRODUCTIONS. ALL RIGHTS RESERVED.', fontSize: 11, fontFamily: 'Share Tech Mono, monospace', textColor: 'rgba(224,224,224,0.25)', opacity: 100 },
 ]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Apply responsive system to enable mobile / tablet breakpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const vaporWaveFestElements = applySmartResponsive(vaporWaveFestBaseElements, 1200)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Theme Maps

@@ -3,6 +3,19 @@
 @import "tw-animate-css";
 @import "./styles/theme.css";
 
+.thumbnail-preview .ce-root,
+.thumbnail-preview .ce-root * {
+  cursor: default !important;
+}
+
+.thumbnail-preview .ce-root::before,
+.thumbnail-preview .ce-root::after,
+.thumbnail-preview .ce-hover-label,
+.thumbnail-preview .ce-resize-handle,
+.thumbnail-preview .ce-edit-badge {
+  display: none !important;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /*

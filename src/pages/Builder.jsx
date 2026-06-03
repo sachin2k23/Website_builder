@@ -9,6 +9,7 @@ import ContextMenu from '../components/builder/ContextMenu'
 import { exportToHTML } from '../utils/exportHTML'
 import { updateNode, deleteNode, findNode } from '../utils/treeHelpers'
 import {
+  applySmartResponsive,
   generateResponsiveDefaults,
   getElementLayout,
   setElementLayout,
@@ -127,15 +128,14 @@ export default function Builder({
   // ── Sync initialElements when template changes ─────────────────────────────
   useEffect(() => {
     const desktopCanvasWidth = canvasSettings?.width || 1200
-    const normalized = initialElements.map(el => {
-  const base = {
-    ...el,
-    name: el.name || el.type,
-    children: [],
-  }
-
-  return generateResponsiveDefaults(base, desktopCanvasWidth)
-})
+    const normalized = applySmartResponsive(
+      initialElements.map(el => ({
+        ...el,
+        name: el.name || el.type,
+        children: [],
+      })),
+      desktopCanvasWidth,
+    )
 
 // Auto-apply default light theme for BoldSummit
 const mapped = isBoldSummitTemplate(normalized)
@@ -167,12 +167,13 @@ const mapped = isBoldSummitTemplate(normalized)
     setSelectedId(null)
     if (bp !== 'desktop') {
       const desktopCanvasWidth = canvasSettings?.width || 1200
-      setTree(prev =>
-        prev.map(el => {
+      setTree(prev => {
+        if (bp === 'phone') return applySmartResponsive(prev, desktopCanvasWidth)
+        return prev.map(el => {
           if (el.breakpoints?.[bp]) return el
           return generateResponsiveDefaults(el, desktopCanvasWidth)
         })
-      )
+      })
     }
   }, [canvasSettings, setTree])
 

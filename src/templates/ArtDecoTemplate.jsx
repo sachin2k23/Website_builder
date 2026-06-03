@@ -21,12 +21,12 @@
 // Light palette → Champagne Ivory  + Deep Bronze
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { generateResponsiveDefaults } from '../utils/responsive'
+import { applySmartResponsive } from '../utils/responsive'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const withResponsive = (elements, width = 1200) =>
-  elements.map(element => generateResponsiveDefaults(element, width))
+  applySmartResponsive(elements, width)
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 // Dark (base) values

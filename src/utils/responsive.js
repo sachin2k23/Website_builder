@@ -242,9 +242,10 @@ function phoneGap(element) {
  * TABLET STRATEGY — proportional X/width scaling to 768 canvas. Font sizes
  * scaled down modestly. Full-bleed containers stretch to full tablet width.
  */
-export function autoResponsive(elements, desktopCanvasWidth = 1200) {
+export function autoResponsive(elements, desktopCanvasWidth = 1200, options = {}) {
   if (!elements || elements.length === 0) return elements
 
+  const preserveExisting = options.preserveExisting ?? false
   const tabletScale = TABLET_W / desktopCanvasWidth
 
   // ── 1. Classify ────────────────────────────────────────────────────────────
@@ -297,7 +298,7 @@ export function autoResponsive(elements, desktopCanvasWidth = 1200) {
   // phonePos: the final phone layout per element id
   const phonePos = new Map()
 
-  let cursor = 0
+  let cursor = PHONE_MARGIN
   let lastSectionId = null
 
   // We process elements in reading order. We skip:
@@ -381,7 +382,7 @@ export function autoResponsive(elements, desktopCanvasWidth = 1200) {
 
   // ── 4. Size full-bleed sections around their children ─────────────────────
 
-  const SPADY = 24, SPADB = 28
+  const SPADY = 28, SPADB = 32
 
   elements
     .filter(el => fullBleedSet.has(el.id))
@@ -404,16 +405,14 @@ export function autoResponsive(elements, desktopCanvasWidth = 1200) {
 
       if (minY === Infinity) {
         // No children found — proportional fallback
-        const ratio = (desktopCanvasWidth > 0)
-          ? PHONE_INNER / desktopCanvasWidth
-          : 1
+        const fallbackH = Math.max(80, Math.round((sectionBox.height || 100) * 0.45))
         phonePos.set(section.id, {
           x: 0,
           y: cursor,
           width: PHONE_W,
-          height: Math.max(60, Math.round(sectionBox.height * 0.55)),
+          height: fallbackH,
         })
-        cursor += Math.max(60, Math.round(sectionBox.height * 0.55)) + 16
+        cursor += fallbackH + 16
         return
       }
 
@@ -447,7 +446,7 @@ export function autoResponsive(elements, desktopCanvasWidth = 1200) {
   // ── 6. Assemble final output ───────────────────────────────────────────────
 
   return elements.map(el => {
-    if (el.breakpoints?.tablet && el.breakpoints?.phone) return el
+    if (preserveExisting && el.breakpoints?.tablet && el.breakpoints?.phone) return el
 
     const tb    = buildTablet(el)
     const tabSt = scaleFontTablet(el)
@@ -466,9 +465,9 @@ export function autoResponsive(elements, desktopCanvasWidth = 1200) {
       ...el,
       breakpoints: {
         ...(el.breakpoints ?? {}),
-        tablet: el.breakpoints?.tablet ?? tabletOverride,
-        phone:  el.breakpoints?.phone  ?? phoneOverride,
-        custom: el.breakpoints?.custom ?? tabletOverride,
+        tablet: preserveExisting && el.breakpoints?.tablet ? el.breakpoints.tablet : tabletOverride,
+        phone:  preserveExisting && el.breakpoints?.phone  ? el.breakpoints.phone  : phoneOverride,
+        custom: preserveExisting && el.breakpoints?.custom ? el.breakpoints.custom : tabletOverride,
       },
     }
   })
@@ -502,3 +501,151 @@ function findParentSection(el, allElements, fullBleedSet) {
     return ely >= sy - 8 && ely < sy + (s.height ?? 0) - 8
   }) ?? null
 }
+
+// ─── Multi-column grid detection & layout ─────────────────────────────────────
+
+/**
+ * Detect if elements form a multi-column grid.
+ * Returns { isGrid: boolean, cols: number, spacing: number } or null.
+ */
+export function detectGrid(elements, tolerance = 20) {
+  if (elements.length < 2) return null
+
+  const positions = elements.map(el => ({
+    id: el.id,
+    x: el.x ?? 0,
+    y: el.y ?? 0,
+    width: el.width ?? 200,
+  }))
+
+  // Group by approximate X position (column detection)
+  const cols = []
+  positions.forEach(pos => {
+    const col = cols.find(c => Math.abs(c.x - pos.x) <= tolerance)
+    if (col) {
+      col.items.push(pos)
+    } else {
+      cols.push({ x: pos.x, items: [pos] })
+    }
+  })
+
+  cols.sort((a, b) => a.x - b.x)
+
+  if (cols.length < 2) return null
+
+  // Calculate spacing between columns
+  const spacing = cols.length > 1 
+    ? cols[1].x - (cols[0].x + (positions.find(p => p.x === cols[0].x)?.width ?? 200))
+    : 0
+
+  return {
+    isGrid: cols.length >= 2,
+    cols: cols.length,
+    spacing,
+    columnPositions: cols.map(c => c.x),
+  }
+}
+
+/**
+ * Generate responsive tablet/phone overrides for a multi-column grid.
+ * On tablet: reduce columns by half or to 2. On phone: stack to 1 column.
+ */
+export function createGridResponsive(elements, gridInfo, desktopCanvasWidth = 1200) {
+  if (!gridInfo?.isGrid || elements.length === 0) return elements
+
+  const TABLET_W = 768
+  const PHONE_W = 390
+  const PHONE_PADDING = 20
+
+  // Calculate new column counts
+  const tabletCols = Math.max(1, Math.ceil(gridInfo.cols / 2))
+
+  // Calculate item dimensions
+  const getTabletLayout = (el, colIndex) => {
+    const itemW = Math.floor((TABLET_W - 24) / tabletCols)
+    const itemX = 12 + (colIndex % tabletCols) * (itemW + 8)
+    const itemY = el.y ?? 0 // Keep original Y spacing
+
+    return {
+      x: itemX,
+      y: itemY,
+      width: itemW,
+      height: el.height ?? 100,
+    }
+  }
+
+  const getPhoneLayout = (el) => {
+    const phoneInner = PHONE_W - PHONE_PADDING * 2
+    return {
+      x: PHONE_PADDING,
+      y: el.y ?? 0, // Will be recalculated by autoResponsive
+      width: phoneInner,
+      height: el.height ?? 100,
+    }
+  }
+
+  return elements.map((el, idx) => {
+    const hasTablet = el.breakpoints?.tablet
+    const hasPhone = el.breakpoints?.phone
+
+    if (hasTablet && hasPhone) return el
+
+    const colIndex = idx % (gridInfo.cols || 3)
+
+    return {
+      ...el,
+      breakpoints: {
+        ...(el.breakpoints ?? {}),
+        tablet: hasTablet ? el.breakpoints.tablet : getTabletLayout(el, colIndex),
+        phone: hasPhone ? el.breakpoints.phone : getPhoneLayout(el, idx),
+      },
+    }
+  })
+}
+
+// ─── Improved responsive defaults for templates ────────────────────────────────
+
+/**
+ * Generate smart responsive breakpoints that:
+ * - Detect and collapse multi-column layouts
+ * - Prevent right-side content overflow
+ * - Ensure text doesn't clip
+ * - Keep spacing balanced
+ */
+export function applySmartResponsive(elements, desktopCanvasWidth = 1200) {
+  if (!elements || elements.length === 0) return elements
+
+  // First pass: apply basic defaults
+  let result = applyResponsiveDefaultsToTree(elements, desktopCanvasWidth)
+
+  // Second pass: detect multi-column patterns and fix them
+  const groupedByY = new Map()
+  result.forEach(el => {
+    const y = Math.round((el.y ?? 0) / 20) * 20 // Group by Y proximity
+    if (!groupedByY.has(y)) groupedByY.set(y, [])
+    groupedByY.get(y).push(el)
+  })
+
+  // Apply grid-specific fixes to groups with 3+ items in similar Y positions
+  groupedByY.forEach((group) => {
+    if (group.length >= 3) {
+      const gridInfo = detectGrid(group, 30)
+      if (gridInfo?.isGrid && gridInfo.cols >= 3) {
+        // Create grid responsives
+        const gridFixed = createGridResponsive(group, gridInfo, desktopCanvasWidth)
+        gridFixed.forEach(fixed => {
+          const idx = result.findIndex(el => el.id === fixed.id)
+          if (idx >= 0) result[idx] = fixed
+        })
+      }
+    }
+  })
+
+  // Third pass: run the full autoResponsive for final layout. This overwrites
+  // generated defaults so templates get a real mobile reflow at 390px.
+  return autoResponsive(result, desktopCanvasWidth, { preserveExisting: false })
+}
+
+
+
+3

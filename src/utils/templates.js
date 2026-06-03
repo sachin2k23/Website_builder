@@ -1,4 +1,4 @@
-import { generateResponsiveDefaults } from './responsive'
+import { applySmartResponsive } from './responsive'
 
 // ── Art Deco template helpers ────────────────────────────────────────────────
 import {
@@ -64,13 +64,9 @@ import {
   getBotanicalOrganicCanvasFill,
 } from '../templates/BotanicalOrganicTemplate'
 
-// ── Thumbnails — inline SVG data URIs, keyed by TEMPLATES key ────────────────
-// Importing here ensures every TEMPLATES entry gets its thumbnail at build time.
-// No static file paths, no missing assets, no runtime fetch required.
-import { TEMPLATE_THUMBNAILS } from '../templates/thumbnails/index'
-
+// Template thumbnails are rendered from live element data in the gallery.
 const withResponsive = (elements, width = 1200) =>
-  elements.map(element => generateResponsiveDefaults(element, width))
+  applySmartResponsive(elements, width)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TechSummit Template 1  (unchanged)
@@ -296,7 +292,6 @@ export const TEMPLATES = {
     name: 'Blank',
     description: 'Start from scratch',
     elements: [],
-    thumbnail: null,
     canvasSettings: {
       width:  1200,
       height: 900,
@@ -310,7 +305,6 @@ export const TEMPLATES = {
     name: 'TechSummit Template 1',
     description: 'Editable tech conference landing page',
     elements: techSummitElements,
-    thumbnail: TEMPLATE_THUMBNAILS.techSummitTemplate1,
     canvasSettings: {
       width:  1200,
       height: 2768,
@@ -324,7 +318,6 @@ export const TEMPLATES = {
     name: 'Gatsby Gala – Art Deco',
     description: "Luxury New Year's Eve gala event landing page",
     elements: artDecoElements,
-    thumbnail: TEMPLATE_THUMBNAILS.artDecoGala,
     canvasSettings: {
       width:  1200,
       height: 2820,
@@ -338,7 +331,6 @@ export const TEMPLATES = {
     name: 'DesignConf – Bold Typography',
     description: 'Editorial design conference landing page',
     elements: withResponsive(boldSummitElements),
-    thumbnail: TEMPLATE_THUMBNAILS.boldSummitTemplate,
     canvasSettings: {
       width:  1200,
       height: 3952,
@@ -356,7 +348,6 @@ export const TEMPLATES = {
     name: 'NeuSummit – Soft UI Design Conference',
     description: 'Premium neumorphic design-systems conference landing page',
     elements: withResponsive(neuSummitElements),
-    thumbnail: TEMPLATE_THUMBNAILS.neuSummitTemplate,
     canvasSettings: {
       width:  1200,
       height: 4480,
@@ -374,7 +365,6 @@ export const TEMPLATES = {
     name: 'PixelFest – Playful Geometric',
     description: 'Design & creative tech festival landing page',
     elements: withResponsive(playfulGeometricElements),
-    thumbnail: TEMPLATE_THUMBNAILS.playfulGeometricTemplate,
     canvasSettings: {
       width:  1200,
       height: 4660,
@@ -392,7 +382,6 @@ export const TEMPLATES = {
     name: 'Neon Fest – Vaporwave',
     description: 'Synthwave & retrowave music festival landing page',
     elements: withResponsive(vaporWaveFestElements),
-    thumbnail: TEMPLATE_THUMBNAILS.vaporWaveFestTemplate,
     canvasSettings: {
       width:  1200,
       height: 3872,
@@ -410,7 +399,6 @@ export const TEMPLATES = {
     name: 'FORMA – Minimalist Monochrome',
     description: 'High-end editorial design conference landing page',
     elements: withResponsive(minimalistMonochromeElements),
-    thumbnail: TEMPLATE_THUMBNAILS.minimalistMonochromeTemplate,
     canvasSettings: {
       width:  1200,
       height: 4114,
@@ -428,7 +416,6 @@ export const TEMPLATES = {
     name: 'LaunchPad – Flat Design',
     description: 'Bold SaaS product landing page — zero shadows, pure colour',
     elements: withResponsive(flatDesignElements),
-    thumbnail: TEMPLATE_THUMBNAILS.flatDesignTemplate,
     canvasSettings: {
       width:  1200,
       height: 3622,
@@ -446,7 +433,6 @@ export const TEMPLATES = {
     name: 'Verdana – Botanical Organic',
     description: 'Earthy wellness & spa brand — serif type, organic shapes',
     elements: withResponsive(botanicalOrganicElements),
-    thumbnail: TEMPLATE_THUMBNAILS.botanicalOrganicTemplate,
     canvasSettings: {
       width:  1200,
       height: 3980,

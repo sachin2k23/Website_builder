@@ -9,10 +9,10 @@
 //   • Named export  neuSummitElements  (withResponsive applied at end)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { generateResponsiveDefaults } from '../utils/responsive'
+import { applySmartResponsive } from '../utils/responsive'
 
 const withResponsive = (elements, width = 1200) =>
-  elements.map(element => generateResponsiveDefaults(element, width))
+  applySmartResponsive(elements, width)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Design Tokens (Dark Mode = Deep Charcoal Neumorphic)

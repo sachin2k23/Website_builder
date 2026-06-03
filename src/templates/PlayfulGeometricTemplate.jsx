@@ -16,10 +16,10 @@
 //   } from '../templates/PlayfulGeometricTemplate'
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { generateResponsiveDefaults } from '../utils/responsive'
+import { applySmartResponsive } from '../utils/responsive'
 
 const withResponsive = (elements, width = 1200) =>
-  elements.map(element => generateResponsiveDefaults(element, width))
+  applySmartResponsive(elements, width)
 
 // ─── Design Token Constants ───────────────────────────────────────────────────
 

@@ -5,9 +5,11 @@
 // ID prefix: mm-
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { applySmartResponsive } from '../utils/responsive'
+
 // ── Base element definitions (light theme is canonical) ───────────────────────
 
-export const minimalistMonochromeElements = [
+const minimalistMonochromeBaseElements = [
 
   // ── Navigation ──────────────────────────────────────────────────────────────
   { id: 'mm-nav-bg',       type: 'container', name: 'Navigation Bar',        x: 0,    y: 0,    width: 1200, height: 72,  fill: '#FFFFFF',         borderColor: '#000000',  radius: 0, opacity: 100 },
@@ -177,6 +179,12 @@ export const minimalistMonochromeElements = [
   { id: 'mm-footer-copy',   type: 'paragraph', name: 'Footer Copyright',     x: 48,   y: 4078, width: 600,  height: 18,  content: '© 2026 FORMA. All rights reserved.', fontSize: 10, fontFamily: 'JetBrains Mono, monospace', textColor: '#525252', opacity: 100 },
   { id: 'mm-footer-legal',  type: 'paragraph', name: 'Footer Legal',         x: 860,  y: 4078, width: 292,  height: 18,  content: 'Privacy  /  Terms  /  Press', fontSize: 10, fontFamily: 'JetBrains Mono, monospace', textColor: '#525252', textAlign: 'right', opacity: 100 },
 ]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Apply responsive system to enable mobile / tablet breakpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const minimalistMonochromeElements = applySmartResponsive(minimalistMonochromeBaseElements, 1200)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Theme Maps

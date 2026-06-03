@@ -7,8 +7,7 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react'
-import { getElementLayout, getResponsiveValue } from '../utils/responsive'
-import { getCanvasHeight } from '../utils/editorGeometry'
+import ThumbnailPreview from '../components/ThumbnailPreview'
 
 const sortOptions = [
   { key: 'viewed', label: 'Last viewed by me' },
@@ -272,98 +271,14 @@ export default function Dashboard({
 }
 
 function ProjectThumbnail({ project }) {
-  const ref = useRef(null)
-  const [width, setWidth] = useState(0)
   const elements = project.elements || []
   const canvasSettings = project.canvasSettings || { width: 1200, height: 900, fill: '#ffffff' }
-  const canvasWidth = canvasSettings.width || 1200
-  const canvasHeight = getCanvasHeight(elements, canvasSettings, 'desktop')
-  const scale = width ? width / canvasWidth : 0.25
-
-  useEffect(() => {
-    const measure = () => {
-      if (ref.current) setWidth(ref.current.getBoundingClientRect().width)
-    }
-    measure()
-    const observer = new ResizeObserver(measure)
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [])
 
   return (
-    <div ref={ref} className="relative aspect-[4/3] w-full overflow-hidden bg-[#F8FAFC]">
-      {elements.length === 0 ? (
-        <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-[#A1A1AA]">
-          Blank Project
-        </div>
-      ) : (
-        <div
-          style={{
-            width: canvasWidth,
-            height: canvasHeight,
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-            background: canvasSettings.fill || '#ffffff',
-            position: 'relative',
-          }}
-        >
-          {elements.map(element => (
-            <ThumbnailElement key={element.id} element={element} />
-          ))}
-        </div>
-      )}
-    </div>
+    <ThumbnailPreview
+      elements={elements}
+      canvasSettings={canvasSettings}
+      emptyLabel="Blank Project"
+    />
   )
-}
-
-function ThumbnailElement({ element }) {
-  const layout = getElementLayout(element, 'desktop')
-  const width = layout.width || 200
-  const height = layout.height || 100
-  const base = {
-    position: 'absolute',
-    left: layout.x || 0,
-    top: layout.y || 0,
-    width,
-    height,
-    opacity: (element.opacity ?? 100) / 100,
-    borderRadius: element.radius || 0,
-    boxSizing: 'border-box',
-    overflow: 'hidden',
-  }
-  const border = element.borderColor ? `1.5px solid ${element.borderColor}` : undefined
-  const textBase = {
-    color: element.textColor || '#111827',
-    fontFamily: element.fontFamily || 'Inter, system-ui, sans-serif',
-    fontSize: `${getResponsiveValue(element, 'desktop', 'fontSize', element.type === 'heading' ? 32 : 16)}px`,
-    fontWeight: getResponsiveValue(element, 'desktop', 'fontWeight', element.type === 'heading' ? 700 : 400),
-    lineHeight: getResponsiveValue(element, 'desktop', 'lineHeight', element.lineHeight || 1.3),
-    textAlign: getResponsiveValue(element, 'desktop', 'textAlign', element.textAlign || 'left'),
-    margin: 0,
-    whiteSpace: 'pre-wrap',
-  }
-
-  if (['heading', 'paragraph', 'text', 'label', 'link'].includes(element.type)) {
-    return <div style={{ ...base, height: 'auto', padding: '2px 4px' }}><p style={textBase}>{element.content || element.name || element.type}</p></div>
-  }
-
-  if (element.type === 'button') {
-    return (
-      <div style={{ ...base, background: element.fill || '#2348D7', color: element.textColor || '#fff', border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: element.fontWeight || 600 }}>
-        {element.content || 'Button'}
-      </div>
-    )
-  }
-
-  if (element.type === 'image') {
-    return element.src
-      ? <img src={element.src} alt="" style={{ ...base, objectFit: element.objectFit || 'cover' }} />
-      : <div style={{ ...base, background: element.fill || '#EEF3FF', border }} />
-  }
-
-  if (element.type === 'divider') {
-    return <div style={{ ...base, height: height || 2, background: element.fill || '#E2E8F4' }} />
-  }
-
-  return <div style={{ ...base, background: element.fill || 'transparent', border, boxShadow: element.shadowColor ? `0 4px 24px ${element.shadowColor}` : undefined }} />
 }

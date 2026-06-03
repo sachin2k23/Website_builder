@@ -549,6 +549,9 @@ export default function CanvasElement({
   //    but scale it proportionally when the element is being resized.
   //    If the user has never explicitly set a font size, fall back to getResponsiveFontSize.
   const resolvedFontSize = useMemo(() => {
+    if (activeBreakpoint !== 'desktop') {
+      return getResponsiveFontSize(element, activeBreakpoint, typeDefaults.fontSize)
+    }
     // If a font size is explicitly stored in the element, scale it proportionally.
     if (element.fontSize != null) {
       return Math.max(6, Math.round(element.fontSize * scaleU * 10) / 10)
