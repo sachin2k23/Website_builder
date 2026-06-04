@@ -188,13 +188,11 @@ function ensureCanvasElementStyles() {
 }
 
 // ─── Scale a numeric value proportionally using the geometric mean of x/y scales ─
-// Using the geometric mean (√(sx·sy)) gives balanced scaling when width and height
-// change by different amounts, matching how Figma scales text and padding.
 function scaleValue(baseValue, scaleX, scaleY) {
   return baseValue * Math.sqrt(scaleX * scaleY)
 }
 
-// ─── Default baseline dimensions per element type (used when element has no stored baseline) ─
+// ─── Default baseline dimensions per element type ─────────────────────────────
 const TYPE_BASELINES = {
   heading:   { width: 400, height: 60,  fontSize: 32, paddingH: 0,  paddingV: 0  },
   label:     { width: 120, height: 24,  fontSize: 11, paddingH: 0,  paddingV: 0  },
@@ -248,31 +246,11 @@ export default function CanvasElement({
   const layout = getElementLayout(element, activeBreakpoint)
   const { x, y, width: w, height: h } = layout
 
-  // ── Baseline dimensions: the "original" size this element was created at.
-  //    Stored once in element.baselineWidth / element.baselineHeight so that
-  //    proportional scaling always references the same origin across sessions.
-  //    Falls back to type defaults if not yet stored.
   const typeDefaults = TYPE_BASELINES[element.type] || { width: 100, height: 40, fontSize: 14, paddingH: 0, paddingV: 0 }
 
-  // ── FIX: Seed baselines on mount if they are missing.
-  //
-  //    THE BUG: Without this, on first render scaleX = w / typeDefaults.width.
-  //    If the template element has a different size than the type default
-  //    (e.g. a heading at width=800 vs typeDefault=400), scaleU = 2.0,
-  //    inflating resolvedFontSize to 64px. The baselines were only written
-  //    inside handleUpdate, which only fires on user interaction — so the
-  //    inflated scale persisted until the first click/drag.
-  //
-  //    THE FIX: Write the baselines immediately at mount if they are absent,
-  //    using the element's *actual* current layout dimensions as the reference
-  //    point. This ensures scaleU = 1.0 on initial render for all elements
-  //    that don't yet have baselines stored (e.g. template-loaded elements).
-  //
-  //    We use a ref to ensure this only fires once per element identity,
-  //    even if the component re-renders before the async onUpdate propagates.
+  // ── Seed baselines on mount if they are missing ──────────────────────────────
   const baselineSeedFiredRef = useRef(false)
   useEffect(() => {
-    // Only seed if baselines are genuinely missing and we haven't already fired
     if (element.baselineWidth && element.baselineHeight) return
     if (baselineSeedFiredRef.current) return
     baselineSeedFiredRef.current = true
@@ -287,39 +265,28 @@ export default function CanvasElement({
       baselinePaddingV:     element.paddingTop    ?? element.paddingBottom ?? typeDefaults.paddingV,
       baselineBorderRadius: element.borderRadius  ?? element.radius        ?? 0,
     }
-    // Use silent update (no commit) — we're just writing metadata, not
-    // changing the visual layout. Pass { silent: true } so history stacks
-    // don't record this as a user action.
     onUpdate(element.id, seeded, { silent: true })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [element.id]) // Only re-run if the element identity changes
+  }, [element.id])
 
-  // ── Read baselines: prefer stored values; fall back to current layout dims.
-  //    After the seed above propagates, element.baselineWidth will be set and
-  //    scaleU will stabilise at 1.0 for the initial state.
-  const baselineWidth  = element.baselineWidth  ?? w
-  const baselineHeight = element.baselineHeight ?? h
+  const baselineWidth        = element.baselineWidth  ?? w
+  const baselineHeight       = element.baselineHeight ?? h
   const baselineFontSize     = element.baselineFontSize     ?? (element.fontSize      ?? typeDefaults.fontSize)
   const baselinePaddingH     = element.baselinePaddingH     ?? (element.paddingLeft   ?? element.paddingRight  ?? typeDefaults.paddingH)
   const baselinePaddingV     = element.baselinePaddingV     ?? (element.paddingTop    ?? element.paddingBottom ?? typeDefaults.paddingV)
   const baselineBorderRadius = element.baselineBorderRadius ?? (element.borderRadius  ?? element.radius        ?? 0)
 
-  // ── Current scale factors relative to baseline ──────────────────────────────
   const scaleX = baselineWidth  > 0 ? w / baselineWidth  : 1
   const scaleY = baselineHeight > 0 ? h / baselineHeight : 1
-  // Uniform scale for scalar properties (font-size, border-radius, padding)
   const scaleU = Math.sqrt(scaleX * scaleY)
 
-  // ── Derived scaled values — updated live as w/h changes during resize ────────
   const scaledFontSize     = Math.max(6,  Math.round(baselineFontSize     * scaleU * 10) / 10)
   const scaledPaddingH     = Math.max(0,  Math.round(baselinePaddingH     * scaleU))
   const scaledPaddingV     = Math.max(0,  Math.round(baselinePaddingV     * scaleU))
   const scaledBorderRadius = Math.max(0,  Math.round(baselineBorderRadius * scaleU))
   const scaledIconSize     = Math.max(8,  Math.round(Math.min(w, h) * 0.6))
 
-  // ── Local update helper — routes layout keys through setElementLayout ─────────
-  // Also seeds baseline dimensions the first time an element is moved/resized
-  // so subsequent resizes always scale from a stable origin.
+  // ── Local update helper ───────────────────────────────────────────────────────
   const handleUpdate = useCallback((id, changes, options = {}) => {
     const layoutKeys = new Set(['x', 'y', 'width', 'height'])
     const layoutChanges = {}
@@ -337,11 +304,6 @@ export default function CanvasElement({
       updated = setElementLayout(updated, activeBreakpoint, layoutChanges)
     }
 
-    // Seed baselines once — on the very first resize/drag commit — so all future
-    // proportional scaling has a stable reference point.
-    // NOTE: After the mount-time seed above, this branch should rarely fire for
-    // new elements, but it's kept as a safety net for any element that slips
-    // through (e.g. created programmatically without triggering the mount effect).
     if (!updated.baselineWidth || !updated.baselineHeight) {
       const currentLayout = getElementLayout(updated, activeBreakpoint)
       updated = {
@@ -393,6 +355,12 @@ export default function CanvasElement({
   }, [element.type])
 
   // ── Drag ─────────────────────────────────────────────────────────────────────
+  // FIX: The original onUp closed over the stale x/y values captured at drag
+  // start, so committing in onUp always reset the element to its origin.
+  // The fix tracks the last computed position in a plain object (lastPos) that
+  // both onMove and onUp share via closure. onMove mutates it on every tick;
+  // onUp reads from it when committing — identical to the lastBox pattern used
+  // correctly in handleResizeMouseDown below.
   const handleMouseDown = useCallback((e) => {
     if (isEditing) return
     e.stopPropagation()
@@ -406,6 +374,9 @@ export default function CanvasElement({
           layout: getElementLayout(childEl, activeBreakpoint),
         }))
       : []
+
+    // ✅ Track the last committed position so onUp can commit the correct final coords
+    const lastPos = { x, y }
 
     const onMove = (e) => {
       if (!dragging.current) return
@@ -423,6 +394,11 @@ export default function CanvasElement({
       })
       const clampedBox = clampBoxToCanvas({ ...nextBox, x: snap.x, y: snap.y }, canvasWidth, canvasHeight)
       onInteractionGuides?.(snap.guides)
+
+      // ✅ Keep lastPos in sync so onUp can commit the true final position
+      lastPos.x = clampedBox.x
+      lastPos.y = clampedBox.y
+
       handleUpdate(element.id, { x: clampedBox.x, y: clampedBox.y })
       const snappedDx = clampedBox.x - startPos.current.elX
       const snappedDy = clampedBox.y - startPos.current.elY
@@ -439,7 +415,8 @@ export default function CanvasElement({
       dragging.current = false
       dragChildren.current = []
       onInteractionGuides?.({ vertical: [], horizontal: [] })
-      handleUpdate(element.id, { x, y }, { commit: true })
+      // ✅ Commit lastPos (the actual final position), not stale closure x/y
+      handleUpdate(element.id, { x: lastPos.x, y: lastPos.y }, { commit: true })
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -466,14 +443,11 @@ export default function CanvasElement({
     }
 
     // Track last computed box so onUp commits the correct final dimensions
-    // rather than the stale closure values captured at drag-start.
     const lastBox = { x, y, width: w, height: h }
 
     const onMove = (moveEvent) => {
       if (!resizing.current) return
 
-      // Convert absolute screen-space mouse positions → canvas-space by dividing
-      // by zoom so all three inputs to calculateStableResize share the same space.
       const startCanvasPos = {
         x: resizeStart.current.mouseX / zoom,
         y: resizeStart.current.mouseY / zoom,
@@ -513,7 +487,6 @@ export default function CanvasElement({
         height: Math.round(clampedBox.height),
       }
 
-      // Keep lastBox in sync so onUp can commit the final dimensions.
       Object.assign(lastBox, rounded)
 
       handleUpdate(element.id, rounded)
@@ -521,13 +494,9 @@ export default function CanvasElement({
 
     const onUp = () => {
       if (!resizing.current) return
-      resizing.current    = null
-      resizeStart.current = {}
+      resizing.current = null
       onInteractionGuides?.({ vertical: [], horizontal: [] })
-
-      // Commit lastBox (final resized dims), not stale closure x/y/w/h.
       handleUpdate(element.id, { ...lastBox }, { commit: true })
-
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup',   onUp)
     }
@@ -538,25 +507,19 @@ export default function CanvasElement({
 
   /* ── Visual styles (not layout) ── */
   const fill    = element.fill        || 'transparent'
-  // Border-radius: use the live-scaled value during resize, otherwise use stored value.
   const radius  = cssLength(scaledBorderRadius || (element.borderRadius ?? element.radius ?? 0))
   const border  = element.borderColor ? `1.5px solid ${element.borderColor}` : undefined
   const shadow  = element.shadowColor ? `0 4px 24px ${element.shadowColor}` : undefined
   const opacity = (element.opacity    ?? 100) / 100
   const isFrameLike = isContainerElement(element)
 
-  // ── Resolved font size: prefer explicitly-set fontSize from the properties panel,
-  //    but scale it proportionally when the element is being resized.
-  //    If the user has never explicitly set a font size, fall back to getResponsiveFontSize.
   const resolvedFontSize = useMemo(() => {
     if (activeBreakpoint !== 'desktop') {
       return getResponsiveFontSize(element, activeBreakpoint, typeDefaults.fontSize)
     }
-    // If a font size is explicitly stored in the element, scale it proportionally.
     if (element.fontSize != null) {
       return Math.max(6, Math.round(element.fontSize * scaleU * 10) / 10)
     }
-    // Otherwise use the responsive helper (which reads breakpoint overrides) and scale.
     const base = getResponsiveFontSize(element, activeBreakpoint, typeDefaults.fontSize)
     return Math.max(6, Math.round(base * scaleU * 10) / 10)
   }, [element, activeBreakpoint, scaleU, typeDefaults.fontSize])
@@ -686,7 +649,6 @@ export default function CanvasElement({
               display:         'flex',
               alignItems:      'center',
               justifyContent:  'center',
-              // Scale padding proportionally with button size
               paddingLeft:     `${scaledPaddingH}px`,
               paddingRight:    `${scaledPaddingH}px`,
               paddingTop:      `${scaledPaddingV}px`,
@@ -922,7 +884,6 @@ export default function CanvasElement({
             gap:             `${Math.max(3, 6 * scaleU)}px`,
             boxSizing:       'border-box',
           }}>
-            {/* Icon scales with element */}
             <svg
               width={Math.max(14, 28 * scaleU)}
               height={Math.max(14, 28 * scaleU)}
@@ -958,7 +919,6 @@ export default function CanvasElement({
             alignItems:      'center',
             justifyContent:  'center',
             color:           'white',
-            // Play icon scales with the video element
             fontSize:        `${Math.max(16, 32 * scaleU)}px`,
             boxSizing:       'border-box',
           }}>▶</div>
@@ -975,14 +935,12 @@ export default function CanvasElement({
             alignItems:     'center',
             justifyContent: 'center',
           }}>
-            {/* Icon SVG fills 60% of the bounding box, scaling naturally with w/h */}
             <Icon size={scaledIconSize} strokeWidth={Math.max(1, 2.2 / Math.max(scaleU, 0.5))} />
           </div>
         )
       }
 
       case 'divider':
-        // Height is driven by the element box, no scaling needed
         return (
           <div style={{
             width:           `${w}px`,

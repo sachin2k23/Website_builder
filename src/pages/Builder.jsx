@@ -6,12 +6,15 @@ import RightPanel from '../components/builder/RightPanel'
 import InsertPanel from '../components/builder/InsertPanel'
 import PreviewMode from '../components/builder/PreviewMode'
 import ContextMenu from '../components/builder/ContextMenu'
-import { exportToHTML } from '../utils/exportHTML'
+import PageRenameModal from '../components/builder/PageRenameModal'
+import ConfirmDialog from '../components/builder/ConfirmDialog'
+import { exportToZip } from '../utils/exportHTML'
 import { updateNode, deleteNode, findNode } from '../utils/treeHelpers'
 import {
   applySmartResponsive,
   generateResponsiveDefaults,
   getElementLayout,
+  getElementProperties,
   setElementLayout,
 } from '../utils/responsive'
 import { getContentHeight } from '../utils/editorGeometry'
@@ -19,11 +22,9 @@ import {
   applyThemeToTemplate,
   applyBoldSummitTheme,
   getCanvasFillByTemplate,
-
   isTechSummitTemplate,
   isBoldSummitTemplate,
   isArtDecoTemplate,
-
   isNeuSummitTemplate,
   isVaporWaveFestTemplate,
   isMinimalistMonochromeTemplate,
@@ -61,11 +62,17 @@ export default function Builder({
   onProjectChange,
 }) {
 
+  // ── Modal states ───────────────────────────────────────────────────────────
+  const [showRenamePageModal, setShowRenamePageModal] = useState(false)
+  const [pageToRename, setPageToRename]               = useState(null)
+  const [showDeletePageDialog, setShowDeletePageDialog] = useState(false)
+  const [pageToDelete, setPageToDelete]               = useState(null)
+
   // ── Pages ──────────────────────────────────────────────────────────────────
   const [pages, setPages]               = useState([{ id: 'home', name: 'Home' }])
   const [activePageId, setActivePageId] = useState('home')
 
-  // ── Breakpoint ────────────────────────────────────────────────────────────
+  // ── Breakpoint ─────────────────────────────────────────────────────────────
   const [activeBreakpoint, setActiveBreakpoint] = useState('desktop')
   const [customWidth, setCustomWidth]           = useState(800)
 
@@ -98,11 +105,11 @@ export default function Builder({
   const [isPreview, setIsPreview]     = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
   const [canvasSettings, setCanvasSettings] = useState({
-    width: 1200,
+    width:  1200,
     height: 900,
-    x: 0,
-    y: 0,
-    fill: '#ffffff',
+    x:      0,
+    y:      0,
+    fill:   '#ffffff',
     ...(initialCanvasSettings || {}),
   })
 
@@ -111,7 +118,6 @@ export default function Builder({
   const historyIndex = useRef(0)
   const [historyTick, setHistoryTick] = useState(0)
 
-  // Push snapshot helper — returns the new treeByPage
   const pushSnapshot = useCallback((nextPageTree, prevTreeByPage) => {
     const snapshot = { ...prevTreeByPage, [activePageId]: nextPageTree }
     const trimmed  = historyRef.current.slice(0, historyIndex.current + 1)
@@ -128,19 +134,23 @@ export default function Builder({
   // ── Sync initialElements when template changes ─────────────────────────────
   useEffect(() => {
     const desktopCanvasWidth = canvasSettings?.width || 1200
-    const normalized = applySmartResponsive(
-      initialElements.map(el => ({
-        ...el,
-        name: el.name || el.type,
-        children: [],
-      })),
-      desktopCanvasWidth,
-    )
 
-// Auto-apply default light theme for BoldSummit
-const mapped = isBoldSummitTemplate(normalized)
-  ? applyBoldSummitTheme(normalized, 'light')
-  : normalized
+    const prepared = initialElements.map(el => ({
+      ...el,
+      name:     el.name || el.type,
+      children: [],
+    }))
+
+    // Only run applySmartResponsive on elements NOT already in new format
+    const normalized = prepared.map(el => {
+      if (el.desktop && typeof el.desktop === 'object') return el
+      return applySmartResponsive([el], desktopCanvasWidth)[0]
+    })
+
+    const mapped = isBoldSummitTemplate(normalized)
+      ? applyBoldSummitTheme(normalized, 'light')
+      : normalized
+
     setCanvasSettings(prev => ({
       ...prev,
       ...(initialCanvasSettings || {}),
@@ -170,14 +180,14 @@ const mapped = isBoldSummitTemplate(normalized)
       setTree(prev => {
         if (bp === 'phone') return applySmartResponsive(prev, desktopCanvasWidth)
         return prev.map(el => {
-          if (el.breakpoints?.[bp]) return el
+          if (el[bp]) return el
           return generateResponsiveDefaults(el, desktopCanvasWidth)
         })
       })
     }
   }, [canvasSettings, setTree])
 
-  // ── Shared: commit new node(s) to tree + history ──────────────────────────
+  // ── Shared: commit new node(s) to tree + history ───────────────────────────
   const commitNodes = useCallback((newNodes) => {
     setTreeByPage(prev => {
       const current = prev[activePageId] || []
@@ -192,7 +202,6 @@ const mapped = isBoldSummitTemplate(normalized)
     const sizes              = DEFAULT_SIZES[el.id] || { width: 200, height: 100 }
     const desktopCanvasWidth = canvasSettings?.width || 1200
 
-    // Group elements (navigation, hero-block, cta-block, etc.)
     if (el.type === 'group') {
       const baseTime = Date.now()
       const newNodes = (el.children || []).map((child, index) =>
@@ -228,7 +237,6 @@ const mapped = isBoldSummitTemplate(normalized)
       height: el.height ?? sizes.height,
     }, desktopCanvasWidth)
 
-    // Nest inside selected container if applicable
     if (selectedId) {
       const selected    = findNode(tree, selectedId)
       const isContainer = selected?.type === 'container' || selected?.type === 'section' || selected?.type === 'frame'
@@ -243,14 +251,11 @@ const mapped = isBoldSummitTemplate(normalized)
   }, [tree, selectedId, canvasSettings, commitNodes, setTree])
 
   // ── Drag-to-canvas insert ──────────────────────────────────────────────────
-  // Called by Canvas when user drops an element from InsertPanel onto the canvas.
-  // dropX / dropY are already in canvas-space coordinates (zoom-corrected).
   const handleDropInsert = useCallback((el, dropX, dropY) => {
     const sizes              = DEFAULT_SIZES[el.id] || { width: 200, height: 100 }
     const desktopCanvasWidth = canvasSettings?.width || 1200
     const canvasHeight       = canvasSettings?.height || 900
 
-    // Group elements — offset each child relative to the drop point
     if (el.type === 'group') {
       const baseTime = Date.now()
       const newNodes = (el.children || []).map((child, index) =>
@@ -269,7 +274,6 @@ const mapped = isBoldSummitTemplate(normalized)
       return
     }
 
-    // Single element — center on drop cursor
     const elWidth  = el.width  ?? sizes.width
     const elHeight = el.height ?? sizes.height
 
@@ -317,22 +321,11 @@ const mapped = isBoldSummitTemplate(normalized)
         return updateNode(currentTree, id, changesOrFullElement)
       }
 
-      const layoutKeys    = new Set(['x', 'y', 'width', 'height'])
-      const layoutChanges = {}
-      const styleChanges  = {}
-
-      Object.entries(changesOrFullElement).forEach(([k, v]) => {
-        if (layoutKeys.has(k)) layoutChanges[k] = v
-        else                   styleChanges[k]  = v
-      })
-
       return currentTree.map(el => {
         if (el.id !== id) return el
-        let updated = { ...el, ...styleChanges }
-        if (Object.keys(layoutChanges).length) {
-          updated = setElementLayout(updated, activeBreakpoint, layoutChanges)
-        }
-        return updated
+        // Route ALL changes (layout AND style) into the active breakpoint bucket.
+        // This is what makes desktop/tablet/phone fully independent.
+        return setElementLayout(el, activeBreakpoint, changesOrFullElement)
       })
     }
 
@@ -353,24 +346,24 @@ const mapped = isBoldSummitTemplate(normalized)
 
   const handleTemplateThemeToggle = useCallback((nextTheme) => {
     const current = treeByPage[activePageId] || []
-const supportsTheme =
-  isTechSummitTemplate(current) ||
-  isBoldSummitTemplate(current) ||
-  isArtDecoTemplate(current) ||
-  isNeuSummitTemplate(current) ||
-  isVaporWaveFestTemplate(current) ||
-  isMinimalistMonochromeTemplate(current) ||
-  isFlatDesignTemplate(current) ||
-  isBotanicalOrganicTemplate(current) ||
-  isPlayfulGeometricTemplate(current)
+    const supportsTheme =
+      isTechSummitTemplate(current) ||
+      isBoldSummitTemplate(current) ||
+      isArtDecoTemplate(current) ||
+      isNeuSummitTemplate(current) ||
+      isVaporWaveFestTemplate(current) ||
+      isMinimalistMonochromeTemplate(current) ||
+      isFlatDesignTemplate(current) ||
+      isBotanicalOrganicTemplate(current) ||
+      isPlayfulGeometricTemplate(current)
 
-if (!supportsTheme) return
+    if (!supportsTheme) return
 
     const nextFill = getCanvasFillByTemplate(current, nextTheme)
     if (nextFill) setCanvasSettings(prev => ({ ...prev, fill: nextFill }))
     setTreeByPage(prev => {
       const currentTree = prev[activePageId] || []
-     return pushSnapshot(applyThemeToTemplate(currentTree, nextTheme), prev)
+      return pushSnapshot(applyThemeToTemplate(currentTree, nextTheme), prev)
     })
   }, [activePageId, pushSnapshot, treeByPage])
 
@@ -422,30 +415,42 @@ if (!supportsTheme) return
   }, [activePageId, pushSnapshot])
 
   // ── Page management ────────────────────────────────────────────────────────
-  const handleAddPage = () => {
-    const name = window.prompt('Page name', `Page ${pages.length + 1}`)
-    if (!name?.trim()) return
-    const id = `page-${Date.now()}`
-    setPages(prev => [...prev, { id, name: name.trim() }])
+  const handleAddPage = useCallback((pageData) => {
+    const { id, name, slug } = pageData
+    setPages(prev => [...prev, { id, name, slug }])
     setTreeByPage(prev => ({ ...prev, [id]: [] }))
     setActivePageId(id)
     setSelectedId(null)
-  }
+  }, [])
 
   const handleRenamePage = (id) => {
     const page = pages.find(p => p.id === id)
-    const name = window.prompt('Rename page', page?.name || '')
-    if (!name?.trim()) return
-    setPages(prev => prev.map(p => p.id === id ? { ...p, name: name.trim() } : p))
+    setPageToRename(page)
+    setShowRenamePageModal(true)
+  }
+
+  const handleRenamePageConfirm = (newName) => {
+    if (!pageToRename) return
+    setPages(prev => prev.map(p => p.id === pageToRename.id ? { ...p, name: newName } : p))
+    setPageToRename(null)
   }
 
   const handleDeletePage = (id) => {
-    if (pages.length === 1) return
-    if (!window.confirm('Delete this page?')) return
-    setPages(prev => prev.filter(p => p.id !== id))
-    setTreeByPage(prev => { const next = { ...prev }; delete next[id]; return next })
-    setActivePageId(pages.filter(p => p.id !== id)[0].id)
+    if (pages.length === 1) {
+      alert('Cannot delete the last page')
+      return
+    }
+    setPageToDelete(id)
+    setShowDeletePageDialog(true)
+  }
+
+  const handleDeletePageConfirm = () => {
+    if (!pageToDelete) return
+    setPages(prev => prev.filter(p => p.id !== pageToDelete))
+    setTreeByPage(prev => { const next = { ...prev }; delete next[pageToDelete]; return next })
+    setActivePageId(pages.filter(p => p.id !== pageToDelete)[0].id)
     setSelectedId(null)
+    setPageToDelete(null)
   }
 
   const handleSwitchPage = (id) => {
@@ -497,9 +502,9 @@ if (!supportsTheme) return
     return () => window.removeEventListener('click', close)
   }, [])
 
-  // ── Resolve selected element layout for RightPanel ────────────────────────
+  // ── Resolve selected element props for RightPanel (breakpoint-aware) ───────
   const selectedForPanel = selectedElement
-    ? { ...selectedElement, ...getElementLayout(selectedElement, activeBreakpoint) }
+    ? { ...selectedElement, ...getElementProperties(selectedElement, activeBreakpoint) }
     : null
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -525,7 +530,7 @@ if (!supportsTheme) return
             canRedo={historyIndex.current < historyRef.current.length - 1}
             historyTick={historyTick}
             onPreview={() => setIsPreview(true)}
-            onExport={() => exportToHTML(elements, canvasSettings, projectName)}
+            onExport={async () => await exportToZip(elements, canvasSettings, projectName)}
             onTemplateThemeToggle={handleTemplateThemeToggle}
           />
 
@@ -602,6 +607,23 @@ if (!supportsTheme) return
           onDuplicate={handleDuplicate}
           onDelete={handleDelete}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {showRenamePageModal && pageToRename && (
+        <PageRenameModal
+          page={pageToRename}
+          onConfirm={handleRenamePageConfirm}
+          onClose={() => { setShowRenamePageModal(false); setPageToRename(null) }}
+        />
+      )}
+
+      {showDeletePageDialog && (
+        <ConfirmDialog
+          title="Delete Page?"
+          message={`Are you sure you want to delete this page? This cannot be undone.`}
+          onConfirm={() => { handleDeletePageConfirm(); setShowDeletePageDialog(false) }}
+          onClose={() => { setShowDeletePageDialog(false); setPageToDelete(null) }}
         />
       )}
     </div>

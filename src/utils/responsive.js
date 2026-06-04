@@ -1,10 +1,28 @@
 /**
  * responsive.js
  *
- * Single source of truth for breakpoint definitions and per-breakpoint
- * layout resolution. Elements store their desktop layout as the base.
- * Tablet / phone / custom overrides are stored in element.breakpoints[bp].
+ * Independent responsive editing system.
+ *
+ * SCHEMA — two supported formats, both safe to read at all times:
+ *
+ *   NEW (independent):
+ *     { id, type, name,
+ *       desktop: { x, y, width, height, fill, fontSize, ... },
+ *       tablet:  { x, y, width, height, fill, fontSize, ... },
+ *       phone:   { x, y, width, height, fill, fontSize, ... },
+ *       custom:  { x, y, width, height, fill, fontSize, ... } }
+ *
+ *   OLD (cascading — legacy, read-only path):
+ *     { id, type, name, x, y, width, height, fill, fontSize, ...,
+ *       breakpoints: { tablet: {...overrides}, phone: {...overrides} } }
+ *
+ * READ  → getElementProperties() handles both formats transparently.
+ *          It NEVER mutates the element.
+ * WRITE → setBreakpointProps() always emits the new independent format.
+ *          First write on an old-format element transparently upgrades it.
  */
+
+// ─── Breakpoint registry ───────────────────────────────────────────────────────
 
 export const BREAKPOINTS = [
   { id: 'desktop', label: 'Desktop', width: 1200 },
@@ -23,83 +41,244 @@ export function getCanvasWidth(breakpointId, canvasSettings, customWidth = 800) 
   }
 }
 
+// ─── Default prop shape ────────────────────────────────────────────────────────
+
+function defaultProps(overrides = {}) {
+  return {
+    x:             0,
+    y:             0,
+    width:         200,
+    height:        100,
+    fill:          '#ffffff',
+    borderColor:   null,
+    borderWidth:   0,
+    shadowColor:   null,
+    radius:        0,
+    opacity:       100,
+    textColor:     '#111827',
+    fontSize:      16,
+    fontWeight:    'normal',
+    lineHeight:    1.5,
+    letterSpacing: 0,
+    textAlign:     'left',
+    paddingTop:    0,
+    paddingRight:  0,
+    paddingBottom: 0,
+    paddingLeft:   0,
+    ...overrides,
+  }
+}
+
+// ─── Detect which format an element is in ─────────────────────────────────────
+
+function isNewFormat(element) {
+  return element.desktop !== undefined && typeof element.desktop === 'object'
+}
+
+// ─── Extract the desktop-baseline props from an element (non-mutating) ────────
+
+function extractDesktopProps(element) {
+  if (isNewFormat(element)) {
+    return defaultProps(element.desktop ?? {})
+  }
+  // Old flat format
+  return defaultProps({
+    x:             element.x             ?? 0,
+    y:             element.y             ?? 0,
+    width:         element.width         ?? 200,
+    height:        element.height        ?? 100,
+    fill:          element.fill,
+    borderColor:   element.borderColor,
+    borderWidth:   element.borderWidth,
+    shadowColor:   element.shadowColor,
+    radius:        element.radius,
+    opacity:       element.opacity,
+    textColor:     element.textColor,
+    fontSize:      element.fontSize,
+    fontWeight:    element.fontWeight,
+    lineHeight:    element.lineHeight,
+    letterSpacing: element.letterSpacing,
+    textAlign:     element.textAlign,
+    paddingTop:    element.paddingTop,
+    paddingRight:  element.paddingRight,
+    paddingBottom: element.paddingBottom,
+    paddingLeft:   element.paddingLeft,
+  })
+}
+
+// ─── READ: getElementProperties ───────────────────────────────────────────────
+//
+// Returns a complete, normalised property set for a specific breakpoint.
+// NEVER mutates the element. Works on both old and new format.
+
+export function getElementProperties(element, breakpointId) {
+  if (isNewFormat(element)) {
+    // New independent format — read straight from the breakpoint bucket.
+    // If that bucket doesn't exist yet, fall back to desktop (covers the
+    // case where desktop exists but tablet/phone haven't been written yet).
+    const src = element[breakpointId] ?? element.desktop ?? {}
+    return defaultProps(src)
+  }
+
+  // Old cascading format — desktop props are on the root, overrides in
+  // element.breakpoints.{tablet,phone,custom}.
+  const desktopProps = extractDesktopProps(element)
+
+  if (breakpointId === 'desktop') return desktopProps
+
+  const overrides = element.breakpoints?.[breakpointId] ?? {}
+  return defaultProps({ ...desktopProps, ...overrides })
+}
+
+// Convenience helpers (non-mutating)
+
 export function getElementLayout(element, breakpointId) {
-  const base = {
-    x:      element.x      ?? 0,
-    y:      element.y      ?? 0,
-    width:  element.width  ?? 200,
-    height: element.height ?? 100,
-  }
-
-  if (breakpointId === 'desktop') return base
-
-  const bpOverrides = element.breakpoints ?? {}
-
-  if (breakpointId === 'phone') {
-    return { ...base, ...(bpOverrides.tablet ?? {}), ...(bpOverrides.phone ?? {}) }
-  }
-  if (breakpointId === 'tablet') {
-    return { ...base, ...(bpOverrides.tablet ?? {}) }
-  }
-  return { ...base, ...(bpOverrides.tablet ?? {}), ...(bpOverrides.custom ?? {}) }
+  const p = getElementProperties(element, breakpointId)
+  return { x: p.x, y: p.y, width: p.width, height: p.height }
 }
 
 export function getResponsiveValue(element, breakpointId, key, fallback) {
-  const baseValue   = element[key] ?? fallback
-  const bpOverrides = element.breakpoints ?? {}
-  if (breakpointId === 'desktop') return baseValue
-  if (breakpointId === 'phone')   return bpOverrides.phone?.[key]  ?? bpOverrides.tablet?.[key] ?? baseValue
-  if (breakpointId === 'tablet')  return bpOverrides.tablet?.[key] ?? baseValue
-  return bpOverrides.custom?.[key] ?? bpOverrides.tablet?.[key] ?? baseValue
+  const p = getElementProperties(element, breakpointId)
+  return p[key] ?? fallback
 }
 
 export function getResponsiveFontSize(element, breakpointId, fallback = 16) {
-  const base        = element.fontSize ?? fallback
-  const bpOverrides = element.breakpoints ?? {}
-  if (breakpointId === 'desktop') return base
-  if (breakpointId === 'tablet')  return bpOverrides.tablet?.fontSize ?? Math.round(base * 0.9)
-  if (breakpointId === 'phone')   return bpOverrides.phone?.fontSize  ?? Math.round(base * 0.8)
-  return bpOverrides.custom?.fontSize ?? Math.round(base * 0.9)
+  return getResponsiveValue(element, breakpointId, 'fontSize', fallback)
 }
 
-export function setElementLayout(element, breakpointId, changes) {
-  if (breakpointId === 'desktop') return { ...element, ...changes }
-  return {
+// ─── WRITE: setBreakpointProps ────────────────────────────────────────────────
+//
+// THE only function editor mutations should call.
+// Writes to ONE breakpoint only. Never touches the others.
+// Transparently upgrades old-format elements to the new independent schema
+// on first write — so existing projects keep working.
+
+export function setBreakpointProps(element, breakpointId, patch) {
+  // If already in new format, just patch the target breakpoint.
+  if (isNewFormat(element)) {
+    const existing = element[breakpointId] ?? { ...element.desktop }
+    return {
+      ...element,
+      [breakpointId]: { ...existing, ...patch },
+    }
+  }
+
+  // Old format: upgrade the element to new format in-place.
+  // All four breakpoints get independent copies so that after the first
+  // write nothing cascades any more.
+  const desktopProps = extractDesktopProps(element)
+  const oldBp        = element.breakpoints ?? {}
+
+  const upgraded = {
     ...element,
-    breakpoints: {
-      ...(element.breakpoints ?? {}),
-      [breakpointId]: { ...(element.breakpoints?.[breakpointId] ?? {}), ...changes },
-    },
+    // Keep all non-layout fields (content, src, name, type, id, …)
+    // but add the four independent breakpoint buckets.
+    desktop: desktopProps,
+    tablet:  defaultProps({ ...desktopProps, ...(oldBp.tablet ?? {}) }),
+    phone:   defaultProps({ ...desktopProps, ...(oldBp.phone  ?? {}) }),
+    custom:  defaultProps({ ...desktopProps, ...(oldBp.custom ?? {}) }),
+    // Remove old flat layout fields to avoid confusion.
+    // We keep a fallback read path in getElementProperties so any element
+    // that hasn't been written yet still works.
+    x:          undefined,
+    y:          undefined,
+    width:      undefined,
+    height:     undefined,
+    breakpoints: undefined,
+  }
+
+  // Now apply the patch to the target breakpoint.
+  const existing = upgraded[breakpointId] ?? { ...upgraded.desktop }
+  return {
+    ...upgraded,
+    [breakpointId]: { ...existing, ...patch },
   }
 }
+
+// Legacy alias — kept for backward-compat with any direct callers of setElementLayout.
+export function setElementLayout(element, breakpointId, changes) {
+  return setBreakpointProps(element, breakpointId, changes)
+}
+
+// ─── migrateElement ───────────────────────────────────────────────────────────
+//
+// Explicitly upgrades an element to new format WITHOUT applying any patch.
+// Used only during import / template application — not during normal editing.
+// Safe to call on already-migrated elements.
+
+export function migrateElement(element) {
+  if (isNewFormat(element)) return element
+  return setBreakpointProps(element, 'desktop', {}) // upgrade + touch nothing
+}
+
+// ─── New-element defaults ──────────────────────────────────────────────────────
 
 export function generateResponsiveDefaults(element, desktopCanvasWidth = 1200) {
   const deskX = element.x      ?? 0
   const deskY = element.y      ?? 0
   const deskW = element.width  ?? 200
   const deskH = element.height ?? 100
+
+  const desktopProps = defaultProps({
+    x: deskX, y: deskY, width: deskW, height: deskH,
+    fill:          element.fill,
+    borderColor:   element.borderColor,
+    borderWidth:   element.borderWidth,
+    shadowColor:   element.shadowColor,
+    radius:        element.radius,
+    opacity:       element.opacity,
+    textColor:     element.textColor,
+    fontSize:      element.fontSize,
+    fontWeight:    element.fontWeight,
+    lineHeight:    element.lineHeight,
+    letterSpacing: element.letterSpacing,
+    textAlign:     element.textAlign,
+    paddingTop:    element.paddingTop,
+    paddingRight:  element.paddingRight,
+    paddingBottom: element.paddingBottom,
+    paddingLeft:   element.paddingLeft,
+  })
+
+  // Tablet — proportionally scaled
   const tabletScale = 768 / desktopCanvasWidth
   let tabX = Math.round(deskX * tabletScale)
   let tabW = Math.round(deskW * tabletScale)
   if (tabX + tabW > 768 - 16) tabW = Math.max(40, 768 - tabX - 16)
   if (tabX < 0) tabX = 0
-  const phoneW = deskW < 200
-    ? Math.min(deskW, 390 - 48)
-    : 390 - 48
+
+  const tabletProps = defaultProps({
+    ...desktopProps,
+    x: tabX, y: deskY, width: tabW, height: deskH,
+    fontSize: Math.round((desktopProps.fontSize || 16) * 0.95),
+  })
+
+  // Phone — full-width stack
+  const phoneW = deskW < 200 ? Math.min(deskW, 390 - 48) : 390 - 48
+  const phoneProps = defaultProps({
+    ...desktopProps,
+    x: 24, y: deskY, width: phoneW, height: deskH,
+    fontSize: Math.round((desktopProps.fontSize || 16) * 0.85),
+  })
+
   return {
     ...element,
-    breakpoints: {
-      ...(element.breakpoints ?? {}),
-      tablet: element.breakpoints?.tablet ?? { x: tabX, y: deskY, width: tabW,  height: deskH },
-      phone:  element.breakpoints?.phone  ?? { x: 24,   y: deskY, width: phoneW, height: deskH },
-      custom: element.breakpoints?.custom ?? { x: tabX, y: deskY, width: tabW,  height: deskH },
-    },
+    desktop: desktopProps,
+    tablet:  tabletProps,
+    phone:   phoneProps,
+    custom:  defaultProps({ ...tabletProps }),
+    x:          undefined,
+    y:          undefined,
+    width:      undefined,
+    height:     undefined,
+    breakpoints: undefined,
   }
 }
 
+// ─── Tree-level helpers ────────────────────────────────────────────────────────
+
 export function applyResponsiveDefaultsToTree(tree, desktopCanvasWidth = 1200) {
   return tree.map(el => {
-    if (el.breakpoints?.tablet || el.breakpoints?.phone) return el
+    if (isNewFormat(el) && el.tablet && el.phone) return el
     return generateResponsiveDefaults(el, desktopCanvasWidth)
   })
 }
@@ -108,8 +287,7 @@ export function applyResponsiveDefaultsToTree(tree, desktopCanvasWidth = 1200) {
 
 const PHONE_W      = 390
 const PHONE_MARGIN = 20
-const PHONE_INNER  = PHONE_W - PHONE_MARGIN * 2  // 350
-
+const PHONE_INNER  = PHONE_W - PHONE_MARGIN * 2   // 350
 const TABLET_W     = 768
 
 const TEXT_TYPES = new Set(['heading', 'paragraph', 'text', 'link', 'label'])
@@ -150,31 +328,20 @@ function scaleFontTablet(element) {
 
 // ─── Text height estimation ───────────────────────────────────────────────────
 
-/**
- * Estimate how tall a text element will be at a given container width + font size.
- *
- * Uses 0.50× fontSize as average char width — slightly conservative so we
- * never underestimate and produce boxes that clip their content.
- */
 function estimateTextHeight(element, containerW, fontSize) {
   if (!TEXT_TYPES.has(element.type)) return element.height ?? 40
-
-  const content    = String(element.content ?? element.placeholder ?? '').trim()
+  const content = String(element.content ?? element.placeholder ?? '').trim()
   if (!content) {
     const lh = element.lineHeight || (element.type === 'heading' ? 1.2 : 1.6)
     return Math.ceil(fontSize * lh) + 16
   }
-
-  const lineHeight  = element.lineHeight || (element.type === 'heading' ? 1.2 : 1.6)
-  const padH        = Math.max(0, (element.paddingLeft ?? 0) + (element.paddingRight ?? 0))
-  const usable      = Math.max(20, containerW - padH - 8)
-  const avgCharW    = Math.max(4, fontSize * 0.50)
+  const lineHeight   = element.lineHeight || (element.type === 'heading' ? 1.2 : 1.6)
+  const padH         = Math.max(0, (element.paddingLeft ?? 0) + (element.paddingRight ?? 0))
+  const usable       = Math.max(20, containerW - padH - 8)
+  const avgCharW     = Math.max(4, fontSize * 0.50)
   const charsPerLine = Math.max(3, Math.floor(usable / avgCharW))
-
-  const lines = content.split('\n').reduce((sum, line) => {
-    return sum + Math.max(1, Math.ceil((line.length || 1) / charsPerLine))
-  }, 0)
-
+  const lines        = content.split('\n').reduce(
+    (sum, line) => sum + Math.max(1, Math.ceil((line.length || 1) / charsPerLine)), 0)
   const padV = Math.max(0, (element.paddingTop ?? 0) + (element.paddingBottom ?? 0))
   return Math.ceil(lines * fontSize * lineHeight) + padV + 8
 }
@@ -183,7 +350,6 @@ function estimateTextHeight(element, containerW, fontSize) {
 
 function phoneElemHeight(element, containerW) {
   const dh = element.height ?? 40
-
   if (TEXT_TYPES.has(element.type)) {
     const fs = scaleFontPhone(element) ?? element.fontSize ?? 16
     return Math.max(Math.round(dh * 0.85), estimateTextHeight(element, containerW, fs))
@@ -205,278 +371,14 @@ function phoneElemHeight(element, containerW) {
   return clamp(dh, 20, 500)
 }
 
-// ─── Gap between consecutive phone elements ───────────────────────────────────
-
 function phoneGap(element) {
-  if (element.type === 'divider') return 8
-  if (element.type === 'label')   return 4
-  if (FORM_TYPES.has(element.type)) return 12
-  if (element.type === 'heading') return 8
+  if (element.type === 'divider')         return 8
+  if (element.type === 'label')           return 4
+  if (FORM_TYPES.has(element.type))       return 12
+  if (element.type === 'heading')         return 8
   return 16
 }
 
-// ─── Main autoResponsive ──────────────────────────────────────────────────────
-
-/**
- * Generate tablet + phone breakpoints for every element in the tree.
- *
- * PHONE STRATEGY — three rules, applied strictly:
- *
- *   1. SORT  — All elements are sorted by (desktopY, desktopX). This converts
- *              the 2-D desktop canvas into a 1-D reading-order list.
- *
- *   2. STACK — Every element gets y = cursor. The cursor advances by the
- *              element's phone height + a gap. No element ever derives its
- *              phone Y from its desktop Y.
- *
- *   3. WRAP  — Full-bleed containers (sections) get their phone position set
- *              AFTER their children are placed, by taking the min/max of their
- *              children's phone bounds. This guarantees sections always wrap
- *              exactly their content.
- *
- * LEAF ONLY — Only leaf elements (non-container types, or containers with no
- * children) participate in the stacking pass. Non-full-bleed containers
- * (cards, frames) are also given their own stacking slot, and their children
- * are re-stacked inside them.
- *
- * TABLET STRATEGY — proportional X/width scaling to 768 canvas. Font sizes
- * scaled down modestly. Full-bleed containers stretch to full tablet width.
- */
-export function autoResponsive(elements, desktopCanvasWidth = 1200, options = {}) {
-  if (!elements || elements.length === 0) return elements
-
-  const preserveExisting = options.preserveExisting ?? false
-  const tabletScale = TABLET_W / desktopCanvasWidth
-
-  // ── 1. Classify ────────────────────────────────────────────────────────────
-
-  // Full-bleed sections: box-type elements that span the full canvas width
-  const isFullBleed = (el) =>
-    BOX_TYPES.has(el.type) &&
-    (el.x ?? 0) <= 8 &&
-    (el.width ?? 0) >= desktopCanvasWidth - 16
-
-  const fullBleedSet = new Set(elements.filter(isFullBleed).map(el => el.id))
-
-  // Non-full-bleed containers: cards, frames, etc.
-  const isNonFullBleedContainer = (el) =>
-    BOX_TYPES.has(el.type) && !fullBleedSet.has(el.id)
-
-  // Find the parent non-full-bleed container for a given element (if any)
-  const parentOf = new Map() // childId → parentEl
-  elements.forEach(parent => {
-    if (!isNonFullBleedContainer(parent)) return
-    const px = parent.x ?? 0, py = parent.y ?? 0
-    const pr = px + (parent.width  ?? 0)
-    const pb = py + (parent.height ?? 0)
-    elements.forEach(child => {
-      if (child.id === parent.id) return
-      if (BOX_TYPES.has(child.type)) return // don't nest containers
-      const cx = child.x ?? 0, cy = child.y ?? 0
-      const cr = cx + (child.width  ?? 0)
-      const cb = cy + (child.height ?? 0)
-      const inside = cx >= px - 6 && cy >= py - 6 && cr <= pr + 6 && cb <= pb + 6
-      if (inside && !parentOf.has(child.id)) {
-        parentOf.set(child.id, parent)
-      }
-    })
-  })
-
-  // ── 2. Build sorted reading order ─────────────────────────────────────────
-  //
-  // Sort by desktop Y first, then X. This is the order elements will be
-  // stacked on phone.
-
-  const sorted = [...elements].sort((a, b) => {
-    const ay = a.y ?? 0, by_ = b.y ?? 0
-    if (ay !== by_) return ay - by_
-    return (a.x ?? 0) - (b.x ?? 0)
-  })
-
-  // ── 3. Phone stacking pass ────────────────────────────────────────────────
-
-  // phonePos: the final phone layout per element id
-  const phonePos = new Map()
-
-  let cursor = PHONE_MARGIN
-  let lastSectionId = null
-
-  // We process elements in reading order. We skip:
-  //   - Full-bleed sections (positioned after their children)
-  //   - Children of non-full-bleed containers (positioned inside their parent)
-  //
-  // Non-full-bleed containers ARE processed here — their children are
-  // sub-stacked inside them.
-
-  sorted.forEach(el => {
-    // Skip full-bleed sections — they'll be sized around their children
-    if (fullBleedSet.has(el.id)) return
-
-    // Skip children of non-full-bleed containers — handled inside parent
-    if (parentOf.has(el.id)) return
-
-    // ── Detect section change for extra gap ──────────────────────────────────
-    const mySection = findParentSection(el, elements, fullBleedSet)
-    if (mySection?.id !== lastSectionId) {
-      if (cursor > 0) cursor += 24
-      lastSectionId = mySection?.id ?? null
-    }
-
-    // ── Non-full-bleed container: stack its children inside ──────────────────
-    if (isNonFullBleedContainer(el)) {
-      const children = sorted.filter(c => parentOf.get(c.id)?.id === el.id)
-
-      if (children.length === 0) {
-        const h = phoneElemHeight(el, PHONE_INNER)
-        phonePos.set(el.id, { x: PHONE_MARGIN, y: cursor, width: PHONE_INNER, height: h })
-        cursor += h + 16
-        return
-      }
-
-      // Sub-stack children inside the container
-      const CPAD = 16
-      let childCursor = cursor + CPAD
-      const innerW = PHONE_INNER - CPAD * 2
-
-      children
-        .sort((a, b) => (a.y ?? 0) !== (b.y ?? 0) ? (a.y ?? 0) - (b.y ?? 0) : (a.x ?? 0) - (b.x ?? 0))
-        .forEach(child => {
-          const childW = computeWidth(child, innerW)
-          const childH = phoneElemHeight(child, childW)
-          const childX = PHONE_MARGIN + CPAD + (childW < innerW ? Math.round((innerW - childW) / 2) : 0)
-          const fontOvr = scaleFontPhone(child)
-          phonePos.set(child.id, {
-            x: childX,
-            y: childCursor,
-            width: childW,
-            height: childH,
-            ...(fontOvr != null ? { fontSize: fontOvr } : {}),
-          })
-          childCursor += childH + phoneGap(child)
-        })
-
-      const containerH = childCursor - cursor + CPAD
-      phonePos.set(el.id, { x: PHONE_MARGIN, y: cursor, width: PHONE_INNER, height: containerH })
-      cursor += containerH + 16
-      return
-    }
-
-    // ── Regular leaf element ─────────────────────────────────────────────────
-    const elW  = computeWidth(el, PHONE_INNER)
-    const elH  = phoneElemHeight(el, elW)
-    const elX  = elW < PHONE_INNER - 10
-      ? Math.round((PHONE_W - elW) / 2)  // centre narrow elements
-      : PHONE_MARGIN
-    const fontOvr = scaleFontPhone(el)
-
-    phonePos.set(el.id, {
-      x: elX,
-      y: cursor,
-      width: elW,
-      height: elH,
-      ...(fontOvr != null ? { fontSize: fontOvr } : {}),
-    })
-
-    cursor += elH + phoneGap(el)
-  })
-
-  // ── 4. Size full-bleed sections around their children ─────────────────────
-
-  const SPADY = 28, SPADB = 32
-
-  elements
-    .filter(el => fullBleedSet.has(el.id))
-    .sort((a, b) => (a.y ?? 0) - (b.y ?? 0))
-    .forEach(section => {
-      // Gather phone Y/height for every element whose desktop position is
-      // inside this section (both direct children and container children)
-      const sectionBox = { x: section.x ?? 0, y: section.y ?? 0, width: section.width ?? 0, height: section.height ?? 0 }
-
-      let minY = Infinity, maxY = -Infinity
-      phonePos.forEach((pos, id) => {
-        const el = elements.find(e => e.id === id)
-        if (!el) return
-        const ely = el.y ?? 0
-        if (ely >= sectionBox.y - 8 && ely < sectionBox.y + sectionBox.height - 8) {
-          minY = Math.min(minY, pos.y)
-          maxY = Math.max(maxY, pos.y + pos.height)
-        }
-      })
-
-      if (minY === Infinity) {
-        // No children found — proportional fallback
-        const fallbackH = Math.max(80, Math.round((sectionBox.height || 100) * 0.45))
-        phonePos.set(section.id, {
-          x: 0,
-          y: cursor,
-          width: PHONE_W,
-          height: fallbackH,
-        })
-        cursor += fallbackH + 16
-        return
-      }
-
-      phonePos.set(section.id, {
-        x: 0,
-        y: Math.max(0, minY - SPADY),
-        width: PHONE_W,
-        height: maxY - minY + SPADY + SPADB,
-      })
-    })
-
-  // ── 5. Tablet layout ───────────────────────────────────────────────────────
-
-  function buildTablet(el) {
-    if (fullBleedSet.has(el.id)) {
-      return { x: 0, y: el.y ?? 0, width: TABLET_W, height: el.height ?? 100 }
-    }
-    let tx = Math.round((el.x ?? 0) * tabletScale)
-    let tw = Math.round((el.width  ?? 200) * tabletScale)
-    if (tx + tw > TABLET_W) tw = Math.max(40, TABLET_W - tx)
-    if (tx < 0) tx = 0
-
-    let th = el.height ?? 40
-    if (TEXT_TYPES.has(el.type)) {
-      const fs = scaleFontTablet(el) ?? el.fontSize ?? 16
-      th = Math.max(th, estimateTextHeight(el, tw, fs))
-    }
-    return { x: tx, y: el.y ?? 0, width: tw, height: th }
-  }
-
-  // ── 6. Assemble final output ───────────────────────────────────────────────
-
-  return elements.map(el => {
-    if (preserveExisting && el.breakpoints?.tablet && el.breakpoints?.phone) return el
-
-    const tb    = buildTablet(el)
-    const tabSt = scaleFontTablet(el)
-    const phone = phonePos.get(el.id)
-
-    const tabletOverride = {
-      x: tb.x, y: tb.y, width: tb.width, height: tb.height,
-      ...(tabSt != null ? { fontSize: tabSt } : {}),
-    }
-
-    const phoneOverride = phone
-      ? { x: phone.x, y: phone.y, width: phone.width, height: phone.height, ...(phone.fontSize != null ? { fontSize: phone.fontSize } : {}) }
-      : { x: PHONE_MARGIN, y: 0, width: PHONE_INNER, height: phoneElemHeight(el, PHONE_INNER) }
-
-    return {
-      ...el,
-      breakpoints: {
-        ...(el.breakpoints ?? {}),
-        tablet: preserveExisting && el.breakpoints?.tablet ? el.breakpoints.tablet : tabletOverride,
-        phone:  preserveExisting && el.breakpoints?.phone  ? el.breakpoints.phone  : phoneOverride,
-        custom: preserveExisting && el.breakpoints?.custom ? el.breakpoints.custom : tabletOverride,
-      },
-    }
-  })
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Compute phone width for an element. Most elements go full PHONE_INNER.
- *  Small elements (icon, narrow button, checkbox) keep a natural width. */
 function computeWidth(el, maxW) {
   if (el.type === 'icon') {
     const side = Math.min(el.width ?? 48, el.height ?? 48)
@@ -485,14 +387,10 @@ function computeWidth(el, maxW) {
   if (el.type === 'checkbox') return Math.min(el.width ?? maxW, maxW)
   if (el.type === 'divider')  return maxW
   if (el.type === 'image' || el.type === 'video') return maxW
-  // Narrow elements that aren't text (e.g. compact buttons < 120px wide)
-  if ((el.width ?? maxW) <= 120 && !TEXT_TYPES.has(el.type)) {
-    return Math.min(el.width ?? maxW, maxW)
-  }
+  if ((el.width ?? maxW) <= 120 && !TEXT_TYPES.has(el.type)) return Math.min(el.width ?? maxW, maxW)
   return maxW
 }
 
-/** Find the full-bleed section that contains this element (by desktop Y). */
 function findParentSection(el, allElements, fullBleedSet) {
   const ely = el.y ?? 0
   return allElements.find(s => {
@@ -502,150 +400,232 @@ function findParentSection(el, allElements, fullBleedSet) {
   }) ?? null
 }
 
-// ─── Multi-column grid detection & layout ─────────────────────────────────────
+// ─── autoResponsive ───────────────────────────────────────────────────────────
+//
+// Used only during initial template application / import.
+// Produces the initial independent tablet + phone buckets.
+// Normal per-breakpoint editing goes through setBreakpointProps, not here.
 
-/**
- * Detect if elements form a multi-column grid.
- * Returns { isGrid: boolean, cols: number, spacing: number } or null.
- */
+export function autoResponsive(elements, desktopCanvasWidth = 1200, options = {}) {
+  if (!elements || elements.length === 0) return elements
+
+  const preserveExisting = options.preserveExisting ?? false
+  const tabletScale = TABLET_W / desktopCanvasWidth
+
+  const isFullBleed = (el) => {
+    const p = getElementProperties(el, 'desktop')
+    return BOX_TYPES.has(el.type) && p.x <= 8 && p.width >= desktopCanvasWidth - 16
+  }
+  const fullBleedSet = new Set(elements.filter(isFullBleed).map(el => el.id))
+  const isNonFullBleedContainer = (el) => BOX_TYPES.has(el.type) && !fullBleedSet.has(el.id)
+
+  const parentOf = new Map()
+  elements.forEach(parent => {
+    if (!isNonFullBleedContainer(parent)) return
+    const pp = getElementProperties(parent, 'desktop')
+    const pr = pp.x + pp.width, pb = pp.y + pp.height
+    elements.forEach(child => {
+      if (child.id === parent.id || BOX_TYPES.has(child.type)) return
+      const cp = getElementProperties(child, 'desktop')
+      const cr = cp.x + cp.width, cb = cp.y + cp.height
+      if (cp.x >= pp.x - 6 && cp.y >= pp.y - 6 && cr <= pr + 6 && cb <= pb + 6 && !parentOf.has(child.id))
+        parentOf.set(child.id, parent)
+    })
+  })
+
+  // Sort by desktop Y then X
+  const sorted = [...elements].sort((a, b) => {
+    const ap = getElementProperties(a, 'desktop')
+    const bp = getElementProperties(b, 'desktop')
+    return ap.y !== bp.y ? ap.y - bp.y : ap.x - bp.x
+  })
+
+  // Phone stacking pass
+  const phonePos = new Map()
+  let cursor = PHONE_MARGIN
+  let lastSectionId = null
+
+  sorted.forEach(el => {
+    if (fullBleedSet.has(el.id) || parentOf.has(el.id)) return
+    const mySection = findParentSection(el, elements, fullBleedSet)
+    if (mySection?.id !== lastSectionId) {
+      if (cursor > 0) cursor += 24
+      lastSectionId = mySection?.id ?? null
+    }
+
+    if (isNonFullBleedContainer(el)) {
+      const children = sorted.filter(c => parentOf.get(c.id)?.id === el.id)
+      if (children.length === 0) {
+        const h = phoneElemHeight(el, PHONE_INNER)
+        phonePos.set(el.id, { x: PHONE_MARGIN, y: cursor, width: PHONE_INNER, height: h })
+        cursor += h + 16
+        return
+      }
+      const CPAD = 16
+      let childCursor = cursor + CPAD
+      const innerW = PHONE_INNER - CPAD * 2
+      children
+        .sort((a, b) => {
+          const ap = getElementProperties(a, 'desktop'), bp = getElementProperties(b, 'desktop')
+          return ap.y !== bp.y ? ap.y - bp.y : ap.x - bp.x
+        })
+        .forEach(child => {
+          const childW  = computeWidth(child, innerW)
+          const childH  = phoneElemHeight(child, childW)
+          const childX  = PHONE_MARGIN + CPAD + (childW < innerW ? Math.round((innerW - childW) / 2) : 0)
+          const fontOvr = scaleFontPhone(child)
+          phonePos.set(child.id, { x: childX, y: childCursor, width: childW, height: childH, ...(fontOvr != null ? { fontSize: fontOvr } : {}) })
+          childCursor += childH + phoneGap(child)
+        })
+      const containerH = childCursor - cursor + CPAD
+      phonePos.set(el.id, { x: PHONE_MARGIN, y: cursor, width: PHONE_INNER, height: containerH })
+      cursor += containerH + 16
+      return
+    }
+
+    const elW     = computeWidth(el, PHONE_INNER)
+    const elH     = phoneElemHeight(el, elW)
+    const elX     = elW < PHONE_INNER - 10 ? Math.round((PHONE_W - elW) / 2) : PHONE_MARGIN
+    const fontOvr = scaleFontPhone(el)
+    phonePos.set(el.id, { x: elX, y: cursor, width: elW, height: elH, ...(fontOvr != null ? { fontSize: fontOvr } : {}) })
+    cursor += elH + phoneGap(el)
+  })
+
+  // Size full-bleed sections around their children
+  const SPADY = 28, SPADB = 32
+  elements
+    .filter(el => fullBleedSet.has(el.id))
+    .sort((a, b) => (getElementProperties(a, 'desktop').y) - (getElementProperties(b, 'desktop').y))
+    .forEach(section => {
+      const sp = getElementProperties(section, 'desktop')
+      let minY = Infinity, maxY = -Infinity
+      phonePos.forEach((pos, id) => {
+        const el = elements.find(e => e.id === id)
+        if (!el) return
+        const ely = getElementProperties(el, 'desktop').y
+        if (ely >= sp.y - 8 && ely < sp.y + sp.height - 8) {
+          minY = Math.min(minY, pos.y)
+          maxY = Math.max(maxY, pos.y + pos.height)
+        }
+      })
+      if (minY === Infinity) {
+        const fallbackH = Math.max(80, Math.round((sp.height || 100) * 0.45))
+        phonePos.set(section.id, { x: 0, y: cursor, width: PHONE_W, height: fallbackH })
+        cursor += fallbackH + 16
+        return
+      }
+      phonePos.set(section.id, { x: 0, y: Math.max(0, minY - SPADY), width: PHONE_W, height: maxY - minY + SPADY + SPADB })
+    })
+
+  // Build tablet layout
+  function buildTablet(el) {
+    const p = getElementProperties(el, 'desktop')
+    if (fullBleedSet.has(el.id)) return { x: 0, y: p.y, width: TABLET_W, height: p.height }
+    let tx = Math.round(p.x * tabletScale)
+    let tw = Math.round(p.width * tabletScale)
+    if (tx + tw > TABLET_W) tw = Math.max(40, TABLET_W - tx)
+    if (tx < 0) tx = 0
+    let th = p.height
+    if (TEXT_TYPES.has(el.type)) {
+      const fs = scaleFontTablet(el) ?? p.fontSize ?? 16
+      th = Math.max(th, estimateTextHeight(el, tw, fs))
+    }
+    return { x: tx, y: p.y, width: tw, height: th }
+  }
+
+  // Assemble output — write to new independent schema
+  return elements.map(el => {
+    if (preserveExisting && isNewFormat(el) && el.tablet && el.phone) return el
+
+    const desktopProps = getElementProperties(el, 'desktop')
+    const tb    = buildTablet(el)
+    const tabSt = scaleFontTablet(el)
+    const phone = phonePos.get(el.id)
+
+    const tabletProps = defaultProps({
+      ...desktopProps,
+      x: tb.x, y: tb.y, width: tb.width, height: tb.height,
+      ...(tabSt != null ? { fontSize: tabSt } : {}),
+    })
+    const phoneProps = phone
+      ? defaultProps({ ...desktopProps, x: phone.x, y: phone.y, width: phone.width, height: phone.height, ...(phone.fontSize != null ? { fontSize: phone.fontSize } : {}) })
+      : defaultProps({ ...desktopProps, x: PHONE_MARGIN, y: 0, width: PHONE_INNER, height: phoneElemHeight(el, PHONE_INNER) })
+
+    const base = migrateElement(el)
+    return {
+      ...base,
+      tablet: (preserveExisting && base.tablet) ? base.tablet : tabletProps,
+      phone:  (preserveExisting && base.phone)  ? base.phone  : phoneProps,
+      custom: (preserveExisting && base.custom) ? base.custom : { ...tabletProps },
+    }
+  })
+}
+
+// ─── Grid detection ───────────────────────────────────────────────────────────
+
 export function detectGrid(elements, tolerance = 20) {
   if (elements.length < 2) return null
-
-  const positions = elements.map(el => ({
-    id: el.id,
-    x: el.x ?? 0,
-    y: el.y ?? 0,
-    width: el.width ?? 200,
-  }))
-
-  // Group by approximate X position (column detection)
+  const positions = elements.map(el => {
+    const p = getElementProperties(el, 'desktop')
+    return { id: el.id, x: p.x, width: p.width }
+  })
   const cols = []
   positions.forEach(pos => {
     const col = cols.find(c => Math.abs(c.x - pos.x) <= tolerance)
-    if (col) {
-      col.items.push(pos)
-    } else {
-      cols.push({ x: pos.x, items: [pos] })
-    }
+    if (col) col.items.push(pos)
+    else     cols.push({ x: pos.x, items: [pos] })
   })
-
   cols.sort((a, b) => a.x - b.x)
-
   if (cols.length < 2) return null
-
-  // Calculate spacing between columns
-  const spacing = cols.length > 1 
+  const spacing = cols.length > 1
     ? cols[1].x - (cols[0].x + (positions.find(p => p.x === cols[0].x)?.width ?? 200))
     : 0
-
-  return {
-    isGrid: cols.length >= 2,
-    cols: cols.length,
-    spacing,
-    columnPositions: cols.map(c => c.x),
-  }
+  return { isGrid: cols.length >= 2, cols: cols.length, spacing, columnPositions: cols.map(c => c.x) }
 }
 
-/**
- * Generate responsive tablet/phone overrides for a multi-column grid.
- * On tablet: reduce columns by half or to 2. On phone: stack to 1 column.
- */
 export function createGridResponsive(elements, gridInfo, desktopCanvasWidth = 1200) {
   if (!gridInfo?.isGrid || elements.length === 0) return elements
-
-  const TABLET_W = 768
-  const PHONE_W = 390
-  const PHONE_PADDING = 20
-
-  // Calculate new column counts
   const tabletCols = Math.max(1, Math.ceil(gridInfo.cols / 2))
-
-  // Calculate item dimensions
-  const getTabletLayout = (el, colIndex) => {
-    const itemW = Math.floor((TABLET_W - 24) / tabletCols)
-    const itemX = 12 + (colIndex % tabletCols) * (itemW + 8)
-    const itemY = el.y ?? 0 // Keep original Y spacing
-
-    return {
-      x: itemX,
-      y: itemY,
-      width: itemW,
-      height: el.height ?? 100,
-    }
-  }
-
-  const getPhoneLayout = (el) => {
-    const phoneInner = PHONE_W - PHONE_PADDING * 2
-    return {
-      x: PHONE_PADDING,
-      y: el.y ?? 0, // Will be recalculated by autoResponsive
-      width: phoneInner,
-      height: el.height ?? 100,
-    }
-  }
-
   return elements.map((el, idx) => {
-    const hasTablet = el.breakpoints?.tablet
-    const hasPhone = el.breakpoints?.phone
-
-    if (hasTablet && hasPhone) return el
-
+    const dp = getElementProperties(el, 'desktop')
     const colIndex = idx % (gridInfo.cols || 3)
-
+    const itemW    = Math.floor((TABLET_W - 24) / tabletCols)
+    const base     = migrateElement(el)
     return {
-      ...el,
-      breakpoints: {
-        ...(el.breakpoints ?? {}),
-        tablet: hasTablet ? el.breakpoints.tablet : getTabletLayout(el, colIndex),
-        phone: hasPhone ? el.breakpoints.phone : getPhoneLayout(el, idx),
-      },
+      ...base,
+      tablet: base.tablet ?? defaultProps({ ...dp, x: 12 + (colIndex % tabletCols) * (itemW + 8), y: dp.y, width: itemW, height: dp.height }),
+      phone:  base.phone  ?? defaultProps({ ...dp, x: PHONE_MARGIN, y: dp.y, width: PHONE_INNER, height: dp.height }),
     }
   })
 }
 
-// ─── Improved responsive defaults for templates ────────────────────────────────
+// ─── applySmartResponsive ─────────────────────────────────────────────────────
+//
+// Single export — no duplicate declaration.
+// Used during template application / import only.
 
-/**
- * Generate smart responsive breakpoints that:
- * - Detect and collapse multi-column layouts
- * - Prevent right-side content overflow
- * - Ensure text doesn't clip
- * - Keep spacing balanced
- */
 export function applySmartResponsive(elements, desktopCanvasWidth = 1200) {
   if (!elements || elements.length === 0) return elements
 
-  // First pass: apply basic defaults
   let result = applyResponsiveDefaultsToTree(elements, desktopCanvasWidth)
 
-  // Second pass: detect multi-column patterns and fix them
+  // Detect multi-column groups and apply grid-aware layouts
   const groupedByY = new Map()
   result.forEach(el => {
-    const y = Math.round((el.y ?? 0) / 20) * 20 // Group by Y proximity
+    const y = Math.round((getElementProperties(el, 'desktop').y) / 20) * 20
     if (!groupedByY.has(y)) groupedByY.set(y, [])
     groupedByY.get(y).push(el)
   })
-
-  // Apply grid-specific fixes to groups with 3+ items in similar Y positions
-  groupedByY.forEach((group) => {
-    if (group.length >= 3) {
-      const gridInfo = detectGrid(group, 30)
-      if (gridInfo?.isGrid && gridInfo.cols >= 3) {
-        // Create grid responsives
-        const gridFixed = createGridResponsive(group, gridInfo, desktopCanvasWidth)
-        gridFixed.forEach(fixed => {
-          const idx = result.findIndex(el => el.id === fixed.id)
-          if (idx >= 0) result[idx] = fixed
-        })
-      }
-    }
+  groupedByY.forEach(group => {
+    if (group.length < 3) return
+    const gridInfo = detectGrid(group, 30)
+    if (!gridInfo?.isGrid || gridInfo.cols < 3) return
+    const gridFixed = createGridResponsive(group, gridInfo, desktopCanvasWidth)
+    gridFixed.forEach(fixed => {
+      const idx = result.findIndex(el => el.id === fixed.id)
+      if (idx >= 0) result[idx] = fixed
+    })
   })
 
-  // Third pass: run the full autoResponsive for final layout. This overwrites
-  // generated defaults so templates get a real mobile reflow at 390px.
   return autoResponsive(result, desktopCanvasWidth, { preserveExisting: false })
 }
-
-
-
-3

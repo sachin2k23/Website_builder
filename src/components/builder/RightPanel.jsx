@@ -768,22 +768,24 @@ export default function RightPanel({
                   <NumberInput label="Line Height" value={selected.lineHeight || ''} suffix="px" onChange={val => update('lineHeight', val)} />
                 </div>
 
-                {/* Responsive Font Scaling */}
-                <div className="p-2.5 bg-[#F7F9FD] rounded-lg border border-[#EEF2FA]">
-                  <p className="text-[#5E6F8E] text-[9px] font-semibold mb-2">Responsive Scaling</p>
-                  <div className="space-y-1.5">
-                    {[
-                      { bp: 'tablet', label: 'Tablet', scale: 0.9 },
-                      { bp: 'phone',  label: 'Phone',  scale: 0.8 },
-                    ].map(({ bp, label, scale }) => (
-                      <div key={bp} className="flex items-center justify-between text-[10px]">
-                        <span className="text-[#AAB8D4]">{label} (×{scale})</span>
-                        <span className="text-[#5E6F8E] font-mono">{Math.round((selected.fontSize || 16) * scale)}px</span>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-[#AAB8D4] text-[8px] mt-2">Font auto-scales on smaller screens</p>
-                </div>
+{/* Breakpoint font sizes — actual stored values */}
+<div className="p-2.5 bg-[#F7F9FD] rounded-lg border border-[#EEF2FA]">
+  <p className="text-[#5E6F8E] text-[9px] font-semibold mb-2">Font size per breakpoint</p>
+  <div className="space-y-1.5">
+    {['desktop', 'tablet', 'phone'].map(bp => {
+      const bpProps = selected[bp]
+      const size = bpProps?.fontSize ?? selected.fontSize ?? 16
+      const isActive = activeBreakpoint === bp
+      return (
+        <div key={bp} className={`flex items-center justify-between text-[10px] px-2 py-1 rounded ${isActive ? 'bg-[#EEF3FF]' : ''}`}>
+          <span className={isActive ? 'text-[#2348D7] font-semibold' : 'text-[#AAB8D4] capitalize'}>{bp}</span>
+          <span className={`font-mono ${isActive ? 'text-[#2348D7] font-bold' : 'text-[#5E6F8E]'}`}>{size}px</span>
+        </div>
+      )
+    })}
+  </div>
+  <p className="text-[#AAB8D4] text-[8px] mt-2">Edit each breakpoint independently</p>
+</div>
 
                 <div>
                   <p className="text-[#AAB8D4] text-[9px] font-medium mb-1.5">Font Family</p>

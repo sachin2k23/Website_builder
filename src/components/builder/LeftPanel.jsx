@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react'
 import {
   ChevronDown,
   ChevronRight,
@@ -10,6 +10,8 @@ import {
   Plus,
   Search,
   Settings,
+  X,
+  FileText,
 } from 'lucide-react'
 
 const GROUP_BG = '#EAF6FF'
@@ -33,6 +35,186 @@ const TYPE_META = {
   checkbox:  { label: 'Checkbox',  icon: CheckboxIcon,  color: '#4F46E5', bg: '#EEF2FF' },
 }
 
+// ─── Slug helper ─────────────────────────────────────────────────────────────
+function toSlug(str) {
+  return str
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+// ─── Add Page Modal ───────────────────────────────────────────────────────────
+function AddPageModal({ onConfirm, onClose }) {
+  const [name, setName]         = useState('')
+  const [slug, setSlug]         = useState('')
+  const [slugEdited, setSlugEdited] = useState(false)
+  const [nameError, setNameError]   = useState('')
+  const nameRef = useRef(null)
+
+  // Auto-focus the name field when the modal opens
+  useEffect(() => {
+    nameRef.current?.focus()
+  }, [])
+
+  // Auto-generate slug from name unless the user has manually edited it
+  useEffect(() => {
+    if (!slugEdited) setSlug(toSlug(name))
+  }, [name, slugEdited])
+
+  // Close on Escape
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const handleNameChange = (e) => {
+    setName(e.target.value)
+    if (nameError) setNameError('')
+  }
+
+  const handleSlugChange = (e) => {
+    setSlugEdited(true)
+    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'))
+  }
+
+  const handleSubmit = () => {
+    const trimmed = name.trim()
+    if (!trimmed) {
+      setNameError('Page name is required')
+      nameRef.current?.focus()
+      return
+    }
+    const id = `page-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    onConfirm({ id, name: trimmed, slug: slug || toSlug(trimmed) })
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleSubmit()
+  }
+
+  return (
+    // Backdrop
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center"
+      style={{ backgroundColor: 'rgba(10, 20, 45, 0.45)', backdropFilter: 'blur(2px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      {/* Modal card */}
+      <div
+        className="relative w-[400px] rounded-2xl bg-white shadow-2xl"
+        style={{ boxShadow: '0 24px 64px rgba(10,30,80,0.18), 0 2px 8px rgba(10,30,80,0.08)' }}
+        onKeyDown={handleKeyDown}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[#EDF0F7] px-6 py-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EEF5FF]">
+              <FileText size={15} className="text-[#2348D7]" />
+            </span>
+            <div>
+              <h2 className="text-[14px] font-semibold text-[#0F2348]">New Page</h2>
+              <p className="text-[11px] text-[#8A9AB8]">Add a page to your project</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-[#94A3BD] transition-colors hover:bg-[#F3F7FF] hover:text-[#0F2348]"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="space-y-4 px-6 py-5">
+          {/* Page Name */}
+          <div>
+            <label className="mb-1.5 block text-[12px] font-medium text-[#4A5870]">
+              Page Name <span className="text-red-400">*</span>
+            </label>
+            <input
+              ref={nameRef}
+              type="text"
+              value={name}
+              onChange={handleNameChange}
+              placeholder="e.g. About Us"
+              className="w-full rounded-lg border px-3 py-2.5 text-[13px] text-[#0F2348] outline-none transition-colors placeholder:text-[#B0BAC9]"
+              style={{
+                borderColor: nameError ? '#F87171' : '#D8E1F0',
+                backgroundColor: nameError ? '#FFF5F5' : '#FAFBFF',
+                boxShadow: nameError
+                  ? '0 0 0 3px rgba(248,113,113,0.15)'
+                  : 'none',
+              }}
+              onFocus={(e) => {
+                if (!nameError)
+                  e.target.style.boxShadow = '0 0 0 3px rgba(35,72,215,0.12)'
+                e.target.style.borderColor = nameError ? '#F87171' : '#2348D7'
+              }}
+              onBlur={(e) => {
+                e.target.style.boxShadow = 'none'
+                e.target.style.borderColor = nameError ? '#F87171' : '#D8E1F0'
+              }}
+            />
+            {nameError && (
+              <p className="mt-1 text-[11px] text-red-400">{nameError}</p>
+            )}
+          </div>
+
+          {/* Page Slug */}
+          <div>
+            <label className="mb-1.5 block text-[12px] font-medium text-[#4A5870]">
+              URL Slug
+            </label>
+            <div className="flex items-center rounded-lg border border-[#D8E1F0] bg-[#FAFBFF] transition-colors focus-within:border-[#2348D7]"
+              style={{ '--tw-ring-color': 'rgba(35,72,215,0.12)' }}
+            >
+              <span className="select-none border-r border-[#E8EDF6] px-3 py-2.5 text-[12px] text-[#94A3BD]">
+                /
+              </span>
+              <input
+                type="text"
+                value={slug}
+                onChange={handleSlugChange}
+                placeholder="page-slug"
+                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-[13px] text-[#0F2348] outline-none placeholder:text-[#B0BAC9]"
+              />
+            </div>
+            <p className="mt-1 text-[11px] text-[#94A3BD]">
+              Auto-generated from page name · editable
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center gap-2.5 border-t border-[#EDF0F7] px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 flex-1 items-center justify-center rounded-lg border border-[#D8E1F0] bg-white text-[13px] font-medium text-[#5E6F8E] transition-colors hover:border-[#B8C8E0] hover:bg-[#F4F8FD]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#2348D7] text-[13px] font-semibold text-white transition-colors hover:bg-[#1A3BB8] active:bg-[#1530A0]"
+            style={{ boxShadow: '0 2px 8px rgba(35,72,215,0.25)' }}
+          >
+            <Plus size={14} />
+            Create Page
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── LayerRow (unchanged) ─────────────────────────────────────────────────────
 function LayerRow({ node, depth = 0, selectedId, onSelect, hiddenIds, onToggleHide }) {
   const hasChildren = Array.isArray(node.children) && node.children.length > 0
   const defaultCollapsed = !node.virtual
@@ -100,10 +282,7 @@ function LayerRow({ node, depth = 0, selectedId, onSelect, hiddenIds, onToggleHi
 
           <span
             className="mr-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
-            style={{
-              backgroundColor: 'transparent',
-              color: meta.color,
-            }}
+            style={{ backgroundColor: 'transparent', color: meta.color }}
           >
             <Icon size={12} />
           </span>
@@ -112,7 +291,7 @@ function LayerRow({ node, depth = 0, selectedId, onSelect, hiddenIds, onToggleHi
             className="min-w-0 flex-1 truncate text-[12px]"
             style={{
               fontWeight: isSelected || isTopVirtual ? 650 : 500,
-              color: isSelected ? '#243B67' : isHidden ? '#A8B4C7' : isVirtual ? '#5F6368' : '#5F6368',
+              color: isSelected ? '#243B67' : isHidden ? '#A8B4C7' : '#5F6368',
               textDecoration: isHidden ? 'line-through' : 'none',
             }}
           >
@@ -159,10 +338,15 @@ function LayerRow({ node, depth = 0, selectedId, onSelect, hiddenIds, onToggleHi
   )
 }
 
+// ─── PageRow (unchanged) ──────────────────────────────────────────────────────
 function PageRow({ page, isActive, onSelect, onRename, onDelete, onUpdate, canDelete }) {
   const [showMenu, setShowMenu] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [settingsForm, setSettingsForm] = useState({ title: page.title || '', slug: page.slug || '', metaDescription: page.metaDescription || '' })
+  const [settingsForm, setSettingsForm] = useState({
+    title: page.title || '',
+    slug: page.slug || '',
+    metaDescription: page.metaDescription || '',
+  })
 
   return (
     <div className="relative">
@@ -219,7 +403,6 @@ function PageRow({ page, isActive, onSelect, onRename, onDelete, onUpdate, canDe
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[100]">
           <div className="bg-white rounded-lg shadow-xl p-5 w-96">
             <h3 className="text-sm font-semibold text-[#0F2348] mb-4">Page Settings</h3>
-            
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-[#5E6F8E] mb-1">Page Title (for &lt;title&gt; tag)</label>
@@ -231,23 +414,23 @@ function PageRow({ page, isActive, onSelect, onRename, onDelete, onUpdate, canDe
                   className="w-full px-3 py-2 text-sm border border-[#D8E1F0] rounded-lg bg-white text-[#0F2348] placeholder:text-[#8A8A8F] outline-none"
                 />
               </div>
-
               <div>
                 <label className="block text-xs font-medium text-[#5E6F8E] mb-1">Page Slug (URL path)</label>
                 <input
                   type="text"
                   placeholder="/page-slug"
                   value={settingsForm.slug}
-                  onChange={e => setSettingsForm(p => ({ 
-                    ...p, 
-                    slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+                  onChange={e => setSettingsForm(p => ({
+                    ...p,
+                    slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
                   }))}
                   className="w-full px-3 py-2 text-sm border border-[#D8E1F0] rounded-lg bg-white text-[#0F2348] placeholder:text-[#8A8A8F] outline-none"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-medium text-[#5E6F8E] mb-1">Meta Description ({settingsForm.metaDescription.length}/160)</label>
+                <label className="block text-xs font-medium text-[#5E6F8E] mb-1">
+                  Meta Description ({settingsForm.metaDescription.length}/160)
+                </label>
                 <textarea
                   placeholder="SEO meta description (160 chars max)"
                   value={settingsForm.metaDescription}
@@ -257,7 +440,6 @@ function PageRow({ page, isActive, onSelect, onRename, onDelete, onUpdate, canDe
                 />
               </div>
             </div>
-
             <div className="flex gap-2 mt-5">
               <button
                 type="button"
@@ -268,10 +450,7 @@ function PageRow({ page, isActive, onSelect, onRename, onDelete, onUpdate, canDe
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  onUpdate?.(page.id, settingsForm)
-                  setShowSettings(false)
-                }}
+                onClick={() => { onUpdate?.(page.id, settingsForm); setShowSettings(false) }}
                 className="flex-1 px-3 py-2 text-sm font-medium text-white bg-[#2348D7] rounded-lg hover:bg-[#1A3BA0] transition-colors"
               >
                 Save
@@ -284,6 +463,7 @@ function PageRow({ page, isActive, onSelect, onRename, onDelete, onUpdate, canDe
   )
 }
 
+// ─── LeftPanel ────────────────────────────────────────────────────────────────
 export default function LeftPanel({
   elements = [],
   selectedId,
@@ -293,17 +473,18 @@ export default function LeftPanel({
   pages,
   activePageId,
   onSwitchPage,
-  onAddPage,
+  onAddPage,       // now receives { id, name, slug } — no more prompt() needed
   onRenamePage,
   onDeletePage,
   onUpdatePage,
 }) {
   const tabs = ['Pages', 'Layers']
-  const [search, setSearch] = useState('')
-  const [hiddenIds, setHiddenIds] = useState(new Set())
+  const [search, setSearch]           = useState('')
+  const [hiddenIds, setHiddenIds]     = useState(new Set())
+  const [showAddModal, setShowAddModal] = useState(false)   // ← new
 
-  const layerTree = useMemo(() => buildLayerTree(elements), [elements])
-  const flatLayers = useMemo(() => flattenTree(layerTree).filter(node => !node.virtual), [layerTree])
+  const layerTree   = useMemo(() => buildLayerTree(elements), [elements])
+  const flatLayers  = useMemo(() => flattenTree(layerTree).filter(node => !node.virtual), [layerTree])
   const searchTrimmed = search.trim().toLowerCase()
   const filtered = searchTrimmed
     ? flatLayers.filter(node =>
@@ -313,16 +494,23 @@ export default function LeftPanel({
       )
     : null
 
-  const toggleHide = id => {
+  const toggleHide = useCallback(id => {
     setHiddenIds(prev => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
-  }
+  }, [])
+
+  // Called by AddPageModal with { id, name, slug }
+  const handleConfirmAddPage = useCallback(pageData => {
+    onAddPage(pageData)       // hand structured data up to the parent — no prompt()
+    setShowAddModal(false)
+  }, [onAddPage])
 
   return (
     <div className="flex h-full w-[316px] shrink-0 select-none flex-col border-r border-[#E6E6E8] bg-white">
+      {/* ── Tab bar ── */}
       <div className="px-4 pb-4 pt-5">
         <div className="flex rounded-lg bg-[#F3F3F4] p-1">
           {tabs.map(tab => (
@@ -366,14 +554,16 @@ export default function LeftPanel({
         <div className="mt-5 h-px bg-[#E8E8EA]" />
       </div>
 
+      {/* ── Content area ── */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {activeTab === 'Pages' && (
           <div>
             <div className="mb-1 flex items-center justify-between px-2 py-1">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[#94A3BD]">Pages</span>
+              {/* ↓ Now opens the modal instead of calling onAddPage directly */}
               <button
                 type="button"
-                onClick={onAddPage}
+                onClick={() => setShowAddModal(true)}
                 className="rounded-lg p-1 text-[#94A3BD] transition-colors hover:bg-[#EEF6FF] hover:text-[#0B74DE]"
                 title="Add page"
               >
@@ -427,14 +617,22 @@ export default function LeftPanel({
           </div>
         )}
       </div>
+
+      {/* ── Add Page Modal (portal-free, renders above everything via z-index) ── */}
+      {showAddModal && (
+        <AddPageModal
+          onConfirm={handleConfirmAddPage}
+          onClose={() => setShowAddModal(false)}
+        />
+      )}
     </div>
   )
 }
 
+// ─── Tree helpers (unchanged) ─────────────────────────────────────────────────
 function buildLayerTree(elements) {
   const displayRoots = inferContainerHierarchy(elements)
   const count = flattenTree(displayRoots).filter(node => !node.virtual).length
-
   return [{
     id: '__desktop-root',
     type: 'desktop',
@@ -460,13 +658,9 @@ function inferContainerHierarchy(elements) {
 
   nodes.forEach(child => {
     if (assigned.has(child.id)) return
-    if (child.children?.length) {
-      child.children.forEach(grandchild => assigned.add(grandchild.id))
-    }
-
+    if (child.children?.length) child.children.forEach(grandchild => assigned.add(grandchild.id))
     const parent = findBestVisualParent(child, nodes)
     if (!parent) return
-
     parent.children = [...(parent.children || []), child]
     assigned.add(child.id)
   })
@@ -480,7 +674,6 @@ function inferContainerHierarchy(elements) {
 function findBestVisualParent(child, candidates) {
   const childBox = getBox(child)
   if (!childBox) return null
-
   return candidates
     .filter(candidate =>
       candidate.id !== child.id &&
@@ -498,7 +691,6 @@ function isContainedBy(child, candidate) {
 function containsBox(parent, child) {
   if (!parent || !child) return false
   if (area(parent) <= area(child)) return false
-
   const tolerance = 2
   return (
     child.x >= parent.x - tolerance &&
@@ -509,12 +701,7 @@ function containsBox(parent, child) {
 }
 
 function getBox(node) {
-  return {
-    x: node.x ?? 0,
-    y: node.y ?? 0,
-    width: node.width ?? 0,
-    height: node.height ?? 0,
-  }
+  return { x: node.x ?? 0, y: node.y ?? 0, width: node.width ?? 0, height: node.height ?? 0 }
 }
 
 function area(box) {
@@ -526,24 +713,17 @@ function isContainerType(type) {
 }
 
 function compareLayers(a, b) {
-  const ay = a.y ?? 0
-  const by = b.y ?? 0
+  const ay = a.y ?? 0; const by = b.y ?? 0
   if (ay !== by) return ay - by
   return (a.x ?? 0) - (b.x ?? 0)
 }
 
 function sortChildren(node) {
-  return {
-    ...node,
-    children: (node.children || []).sort(compareLayers).map(sortChildren),
-  }
+  return { ...node, children: (node.children || []).sort(compareLayers).map(sortChildren) }
 }
 
 function flattenTree(nodes, result = []) {
-  nodes.forEach(node => {
-    result.push(node)
-    if (node.children?.length) flattenTree(node.children, result)
-  })
+  nodes.forEach(node => { result.push(node); if (node.children?.length) flattenTree(node.children, result) })
   return result
 }
 
@@ -559,54 +739,43 @@ function getLayerLabel(node, meta) {
   return meta?.label || node.type || 'Layer'
 }
 
+// ─── Icons (unchanged) ───────────────────────────────────────────────────────
 function DesktopIcon({ size = 12 }) {
   return <svg width={size} height={size} viewBox="0 0 14 14" fill="none"><rect x="1.5" y="2" width="11" height="7.5" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 12h4M7 9.5V12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
 }
-
 function StackIcon({ size = 12 }) {
   return <svg width={size} height={size} viewBox="0 0 14 14" fill="none"><rect x="2" y="2.5" width="10" height="2.5" rx="1" fill="currentColor"/><rect x="2" y="6" width="10" height="2.5" rx="1" fill="currentColor"/><rect x="2" y="9.5" width="10" height="2.5" rx="1" fill="currentColor"/></svg>
 }
-
 function SectionIcon({ size = 12 }) {
   return <svg width={size} height={size} viewBox="0 0 14 14" fill="none"><rect x="1.5" y="2" width="11" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M2 5h10" stroke="currentColor" strokeWidth="1.3"/></svg>
 }
-
 function FrameIcon({ size = 12 }) {
   return <svg width={size} height={size} viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><rect x="4" y="4" width="6" height="6" rx="1" fill="currentColor" opacity="0.18"/></svg>
 }
-
 function TypeIcon({ size = 12 }) {
   return <span style={{ fontSize: size, fontWeight: 800, lineHeight: 1 }}>T</span>
 }
-
 function ImageIcon({ size = 12 }) {
   return <svg width={size} height={size} viewBox="0 0 14 14" fill="none"><rect x="2" y="2" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><circle cx="5" cy="5" r="1" fill="currentColor"/><path d="M3 10l3-3 2 2 1.5-2 1.5 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
 }
-
 function LinkIcon({ size = 12 }) {
   return <svg width={size} height={size} viewBox="0 0 14 14" fill="none"><path d="M5.8 8.2l2.4-2.4M6 4.2l.4-.4a2.3 2.3 0 013.2 3.2l-.4.4M8 9.8l-.4.4a2.3 2.3 0 01-3.2-3.2l.4-.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
 }
-
 function ButtonIcon({ size = 12 }) {
   return <svg width={size} height={size} viewBox="0 0 14 14" fill="none"><rect x="2" y="4" width="10" height="6" rx="3" stroke="currentColor" strokeWidth="1.4"/><path d="M5 7h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
 }
-
 function VideoIcon({ size = 12 }) {
   return <svg width={size} height={size} viewBox="0 0 14 14" fill="none"><rect x="2" y="3" width="10" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M6 5.5l3 1.5-3 1.5v-3z" fill="currentColor"/></svg>
 }
-
 function DividerIcon({ size = 12 }) {
   return <svg width={size} height={size} viewBox="0 0 14 14" fill="none"><path d="M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
 }
-
 function InputIcon({ size = 12 }) {
   return <svg width={size} height={size} viewBox="0 0 14 14" fill="none"><rect x="2" y="4" width="10" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M5 6v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
 }
-
 function CheckboxIcon({ size = 12 }) {
   return <svg width={size} height={size} viewBox="0 0 14 14" fill="none"><rect x="2.5" y="2.5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4.5 7l1.7 1.7 3.3-3.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
 }
-
 function UnknownIcon({ size = 12 }) {
   return <span style={{ fontSize: size, fontWeight: 800, lineHeight: 1 }}>?</span>
 }
