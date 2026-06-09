@@ -2,6 +2,7 @@ import { X, Monitor, Tablet, Smartphone } from 'lucide-react'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { BREAKPOINTS, getCanvasWidth, getElementLayout, getResponsiveValue } from '../../utils/responsive'
 import { getCanvasHeight } from '../../utils/editorGeometry'
+import MobileNav from '../MobileNav'
 
 const TOPBAR_H = 48
 const ICONS = { desktop: Monitor, tablet: Tablet, phone: Smartphone, custom: Monitor }
@@ -180,6 +181,11 @@ export default function PreviewMode({ pages = [], treeByPage = {}, activePageId 
   const elements = treeByPage[previewPageId] || []
   const previewPage = pages.find(page => page.id === previewPageId)
 
+  // Derive nav links from elements sitting in the top 120px of the desktop canvas
+  const navLinks = elements
+    .filter(el => ['link', 'button'].includes(el.type) && (el.desktop?.y ?? el.y ?? 0) < 120)
+    .map(el => ({ label: el.content || el.name || 'Link', href: el.link || el.linkHref || '#' }))
+
   useEffect(() => {
     const measure = () => {
       if (containerRef.current) {
@@ -217,6 +223,11 @@ export default function PreviewMode({ pages = [], treeByPage = {}, activePageId 
 
   const fill = canvasSettings?.fill || '#ffffff'
   const scaledDisplayW = canvasWidth * zoom
+
+  // On phone: hide elements that live in the top nav area (replaced by MobileNav)
+  const visibleElements = activeBreakpoint === 'phone'
+    ? elements.filter(el => (el.desktop?.y ?? el.y ?? 0) >= 120)
+    : elements
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', backgroundColor: '#F0F2F8', overflow: 'hidden' }}>
@@ -289,7 +300,17 @@ export default function PreviewMode({ pages = [], treeByPage = {}, activePageId 
                     <p style={{ color: '#C5D0E4', fontSize: 13, fontFamily: 'Inter, sans-serif', margin: 0 }}>Nothing to preview yet - add elements first</p>
                   </div>
                 )}
-                {elements.map(el => renderElement(el, activeBreakpoint, navigatePage))}
+
+                {activeBreakpoint === 'phone' && (
+                  <MobileNav
+                    links={navLinks}
+                    logoText={previewPage?.name || 'Brand'}
+                    accentColor="#2348D7"
+                    theme={fill === '#ffffff' || fill === '#fff' ? 'light' : 'dark'}
+                  />
+                )}
+
+                {visibleElements.map(el => renderElement(el, activeBreakpoint, navigatePage))}
               </div>
 
               <div style={{ width: canvasWidth, height: 8, background: 'linear-gradient(to bottom, rgba(0,0,0,0.05), transparent)', borderRadius: '0 0 6px 6px' }} />

@@ -13,6 +13,7 @@ import {
   X,
   FileText,
 } from 'lucide-react'
+import InsertPanel from './InsertPanel'
 
 const GROUP_BG = '#EAF6FF'
 
@@ -35,7 +36,7 @@ const TYPE_META = {
   checkbox:  { label: 'Checkbox',  icon: CheckboxIcon,  color: '#4F46E5', bg: '#EEF2FF' },
 }
 
-// ─── Slug helper ─────────────────────────────────────────────────────────────
+// ─── Slug helper ──────────────────────────────────────────────────────────────
 function toSlug(str) {
   return str
     .toLowerCase()
@@ -48,68 +49,38 @@ function toSlug(str) {
 
 // ─── Add Page Modal ───────────────────────────────────────────────────────────
 function AddPageModal({ onConfirm, onClose }) {
-  const [name, setName]         = useState('')
-  const [slug, setSlug]         = useState('')
+  const [name, setName]             = useState('')
+  const [slug, setSlug]             = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
   const [nameError, setNameError]   = useState('')
   const nameRef = useRef(null)
 
-  // Auto-focus the name field when the modal opens
-  useEffect(() => {
-    nameRef.current?.focus()
-  }, [])
-
-  // Auto-generate slug from name unless the user has manually edited it
-  useEffect(() => {
-    if (!slugEdited) setSlug(toSlug(name))
-  }, [name, slugEdited])
-
-  // Close on Escape
+  useEffect(() => { nameRef.current?.focus() }, [])
+  useEffect(() => { if (!slugEdited) setSlug(toSlug(name)) }, [name, slugEdited])
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const handleNameChange = (e) => {
-    setName(e.target.value)
-    if (nameError) setNameError('')
-  }
-
-  const handleSlugChange = (e) => {
-    setSlugEdited(true)
-    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'))
-  }
-
   const handleSubmit = () => {
     const trimmed = name.trim()
-    if (!trimmed) {
-      setNameError('Page name is required')
-      nameRef.current?.focus()
-      return
-    }
+    if (!trimmed) { setNameError('Page name is required'); nameRef.current?.focus(); return }
     const id = `page-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
     onConfirm({ id, name: trimmed, slug: slug || toSlug(trimmed) })
   }
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleSubmit()
-  }
-
   return (
-    // Backdrop
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center"
       style={{ backgroundColor: 'rgba(10, 20, 45, 0.45)', backdropFilter: 'blur(2px)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      {/* Modal card */}
       <div
         className="relative w-[400px] rounded-2xl bg-white shadow-2xl"
         style={{ boxShadow: '0 24px 64px rgba(10,30,80,0.18), 0 2px 8px rgba(10,30,80,0.08)' }}
-        onKeyDown={handleKeyDown}
+        onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-[#EDF0F7] px-6 py-5">
           <div className="flex items-center gap-3">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EEF5FF]">
@@ -120,18 +91,12 @@ function AddPageModal({ onConfirm, onClose }) {
               <p className="text-[11px] text-[#8A9AB8]">Add a page to your project</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-[#94A3BD] transition-colors hover:bg-[#F3F7FF] hover:text-[#0F2348]"
-          >
+          <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg text-[#94A3BD] transition-colors hover:bg-[#F3F7FF] hover:text-[#0F2348]">
             <X size={15} />
           </button>
         </div>
 
-        {/* Body */}
         <div className="space-y-4 px-6 py-5">
-          {/* Page Name */}
           <div>
             <label className="mb-1.5 block text-[12px] font-medium text-[#4A5870]">
               Page Name <span className="text-red-400">*</span>
@@ -140,73 +105,35 @@ function AddPageModal({ onConfirm, onClose }) {
               ref={nameRef}
               type="text"
               value={name}
-              onChange={handleNameChange}
+              onChange={(e) => { setName(e.target.value); if (nameError) setNameError('') }}
               placeholder="e.g. About Us"
               className="w-full rounded-lg border px-3 py-2.5 text-[13px] text-[#0F2348] outline-none transition-colors placeholder:text-[#B0BAC9]"
-              style={{
-                borderColor: nameError ? '#F87171' : '#D8E1F0',
-                backgroundColor: nameError ? '#FFF5F5' : '#FAFBFF',
-                boxShadow: nameError
-                  ? '0 0 0 3px rgba(248,113,113,0.15)'
-                  : 'none',
-              }}
-              onFocus={(e) => {
-                if (!nameError)
-                  e.target.style.boxShadow = '0 0 0 3px rgba(35,72,215,0.12)'
-                e.target.style.borderColor = nameError ? '#F87171' : '#2348D7'
-              }}
-              onBlur={(e) => {
-                e.target.style.boxShadow = 'none'
-                e.target.style.borderColor = nameError ? '#F87171' : '#D8E1F0'
-              }}
+              style={{ borderColor: nameError ? '#F87171' : '#D8E1F0', backgroundColor: nameError ? '#FFF5F5' : '#FAFBFF' }}
             />
-            {nameError && (
-              <p className="mt-1 text-[11px] text-red-400">{nameError}</p>
-            )}
+            {nameError && <p className="mt-1 text-[11px] text-red-400">{nameError}</p>}
           </div>
-
-          {/* Page Slug */}
           <div>
-            <label className="mb-1.5 block text-[12px] font-medium text-[#4A5870]">
-              URL Slug
-            </label>
-            <div className="flex items-center rounded-lg border border-[#D8E1F0] bg-[#FAFBFF] transition-colors focus-within:border-[#2348D7]"
-              style={{ '--tw-ring-color': 'rgba(35,72,215,0.12)' }}
-            >
-              <span className="select-none border-r border-[#E8EDF6] px-3 py-2.5 text-[12px] text-[#94A3BD]">
-                /
-              </span>
+            <label className="mb-1.5 block text-[12px] font-medium text-[#4A5870]">URL Slug</label>
+            <div className="flex items-center rounded-lg border border-[#D8E1F0] bg-[#FAFBFF] focus-within:border-[#2348D7]">
+              <span className="select-none border-r border-[#E8EDF6] px-3 py-2.5 text-[12px] text-[#94A3BD]">/</span>
               <input
                 type="text"
                 value={slug}
-                onChange={handleSlugChange}
+                onChange={(e) => { setSlugEdited(true); setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-')) }}
                 placeholder="page-slug"
                 className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-[13px] text-[#0F2348] outline-none placeholder:text-[#B0BAC9]"
               />
             </div>
-            <p className="mt-1 text-[11px] text-[#94A3BD]">
-              Auto-generated from page name · editable
-            </p>
+            <p className="mt-1 text-[11px] text-[#94A3BD]">Auto-generated from page name · editable</p>
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center gap-2.5 border-t border-[#EDF0F7] px-6 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 flex-1 items-center justify-center rounded-lg border border-[#D8E1F0] bg-white text-[13px] font-medium text-[#5E6F8E] transition-colors hover:border-[#B8C8E0] hover:bg-[#F4F8FD]"
-          >
+          <button type="button" onClick={onClose} className="flex h-9 flex-1 items-center justify-center rounded-lg border border-[#D8E1F0] bg-white text-[13px] font-medium text-[#5E6F8E] hover:bg-[#F4F8FD]">
             Cancel
           </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#2348D7] text-[13px] font-semibold text-white transition-colors hover:bg-[#1A3BB8] active:bg-[#1530A0]"
-            style={{ boxShadow: '0 2px 8px rgba(35,72,215,0.25)' }}
-          >
-            <Plus size={14} />
-            Create Page
+          <button type="button" onClick={handleSubmit} className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#2348D7] text-[13px] font-semibold text-white hover:bg-[#1A3BB8]" style={{ boxShadow: '0 2px 8px rgba(35,72,215,0.25)' }}>
+            <Plus size={14} /> Create Page
           </button>
         </div>
       </div>
@@ -214,29 +141,26 @@ function AddPageModal({ onConfirm, onClose }) {
   )
 }
 
-// ─── LayerRow (unchanged) ─────────────────────────────────────────────────────
+// ─── LayerRow ─────────────────────────────────────────────────────────────────
 function LayerRow({ node, depth = 0, selectedId, onSelect, hiddenIds, onToggleHide }) {
-  const hasChildren = Array.isArray(node.children) && node.children.length > 0
-  const defaultCollapsed = !node.virtual
-  const [collapsed, setCollapsed] = useState(defaultCollapsed)
-  const [hovered, setHovered] = useState(false)
+  const hasChildren    = Array.isArray(node.children) && node.children.length > 0
+  const [collapsed, setCollapsed] = useState(!node.virtual)
+  const [hovered, setHovered]     = useState(false)
   const rowRef = useRef(null)
 
-  const isVirtual = node.virtual
-  const isSelected = !isVirtual && selectedId === node.id
+  const isVirtual        = node.virtual
+  const isSelected       = !isVirtual && selectedId === node.id
   const hasSelectedChild = hasChildren && containsNode(node.children, selectedId)
-  const isExpanded = !collapsed || hasSelectedChild
-  const isHidden = hiddenIds?.has(node.id)
-  const meta = TYPE_META[node.type] || { label: node.type || 'Layer', icon: UnknownIcon, color: '#64748B', bg: '#F1F5F9' }
-  const Icon = meta.icon
+  const isExpanded       = !collapsed || hasSelectedChild
+  const isHidden         = hiddenIds?.has(node.id)
+  const meta  = TYPE_META[node.type] || { label: node.type || 'Layer', icon: UnknownIcon, color: '#64748B', bg: '#F1F5F9' }
+  const Icon  = meta.icon
   const label = getLayerLabel(node, meta)
-  const indent = node.type === 'desktop' ? 4 : 6 + depth * 24
+  const indent      = node.type === 'desktop' ? 4 : 6 + depth * 24
   const isTopVirtual = node.type === 'desktop' || node.type === 'content'
 
   useEffect(() => {
-    if (isSelected && rowRef.current) {
-      rowRef.current.scrollIntoView({ block: 'nearest' })
-    }
+    if (isSelected && rowRef.current) rowRef.current.scrollIntoView({ block: 'nearest' })
   }, [isSelected])
 
   return (
@@ -250,10 +174,8 @@ function LayerRow({ node, depth = 0, selectedId, onSelect, hiddenIds, onToggleHi
         <button
           type="button"
           onClick={() => {
-            if (isVirtual) {
-              if (hasChildren) setCollapsed(value => !value)
-              return
-            }
+            if (isVirtual) { if (hasChildren) setCollapsed(v => !v); return }
+            if (selectedId === node.id) { onSelect(null); return }
             onSelect(node.id)
           }}
           className="group flex h-9 w-full items-center rounded-lg text-left transition-colors"
@@ -261,32 +183,27 @@ function LayerRow({ node, depth = 0, selectedId, onSelect, hiddenIds, onToggleHi
             paddingLeft: indent,
             paddingRight: 10,
             backgroundColor: isSelected ? '#EAF4FF' : hovered && !isTopVirtual ? '#F7F7F8' : 'transparent',
-            color: isSelected ? '#FFFFFF' : '#26364D',
           }}
         >
+          {/* Chevron / dot */}
           <span
-            className="mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-colors"
-            onClick={event => {
-              event.stopPropagation()
-              if (hasChildren) setCollapsed(value => !value)
-            }}
+            className="mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
+            onClick={e => { e.stopPropagation(); if (hasChildren) setCollapsed(v => !v) }}
           >
-            {hasChildren ? (
-              isExpanded
+            {hasChildren
+              ? isExpanded
                 ? <ChevronDown size={13} className="text-[#9A9AA0]" />
                 : <ChevronRight size={13} className="text-[#9A9AA0]" />
-            ) : (
-              <span className="h-1.5 w-1.5 rounded-full bg-[#D1D5DB]" />
-            )}
+              : <span className="h-1.5 w-1.5 rounded-full bg-[#D1D5DB]" />
+            }
           </span>
 
-          <span
-            className="mr-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
-            style={{ backgroundColor: 'transparent', color: meta.color }}
-          >
+          {/* Type icon */}
+          <span className="mr-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ color: meta.color }}>
             <Icon size={12} />
           </span>
 
+          {/* Label */}
           <span
             className="min-w-0 flex-1 truncate text-[12px]"
             style={{
@@ -298,21 +215,18 @@ function LayerRow({ node, depth = 0, selectedId, onSelect, hiddenIds, onToggleHi
             {label}
           </span>
 
+          {/* Badge */}
           {node.badge && (
             <span className={`ml-2 shrink-0 text-[10px] ${node.type === 'desktop' ? 'text-[#0B84FF]' : isSelected ? 'text-[#2563EB]' : 'text-[#A5A5AA]'}`}>
               {node.badge}
             </span>
           )}
 
+          {/* Hide/show toggle */}
           {!isVirtual && (hovered || isHidden) && (
             <span
-              className={`ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${
-                isSelected ? 'hover:bg-[#DBEAFE]' : 'hover:bg-[#EAEAEA]'
-              }`}
-              onClick={event => {
-                event.stopPropagation()
-                onToggleHide?.(node.id)
-              }}
+              className={`ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${isSelected ? 'hover:bg-[#DBEAFE]' : 'hover:bg-[#EAEAEA]'}`}
+              onClick={e => { e.stopPropagation(); onToggleHide?.(node.id) }}
               title={isHidden ? 'Show' : 'Hide'}
             >
               {isHidden ? <EyeOff size={12} /> : <Eye size={12} />}
@@ -338,9 +252,9 @@ function LayerRow({ node, depth = 0, selectedId, onSelect, hiddenIds, onToggleHi
   )
 }
 
-// ─── PageRow (unchanged) ──────────────────────────────────────────────────────
+// ─── PageRow ──────────────────────────────────────────────────────────────────
 function PageRow({ page, isActive, onSelect, onRename, onDelete, onUpdate, canDelete }) {
-  const [showMenu, setShowMenu] = useState(false)
+  const [showMenu, setShowMenu]       = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [settingsForm, setSettingsForm] = useState({
     title: page.title || '',
@@ -363,7 +277,7 @@ function PageRow({ page, isActive, onSelect, onRename, onDelete, onUpdate, canDe
           {page.slug && <div className="text-[10px] opacity-75">{page.slug}</div>}
         </div>
         <span
-          onClick={event => { event.stopPropagation(); setShowMenu(value => !value) }}
+          onClick={e => { e.stopPropagation(); setShowMenu(v => !v) }}
           className="rounded p-0.5 opacity-0 transition-opacity hover:bg-[#DBEAFE] group-hover:opacity-100"
         >
           <MoreHorizontal size={12} />
@@ -372,27 +286,14 @@ function PageRow({ page, isActive, onSelect, onRename, onDelete, onUpdate, canDe
 
       {showMenu && (
         <div className="absolute left-full top-0 z-50 ml-1 w-40 overflow-hidden rounded-xl border border-[#D8E1F0] bg-white shadow-lg">
-          <button
-            type="button"
-            onClick={() => { setShowSettings(true); setShowMenu(false) }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[#243754] transition-colors hover:bg-[#F3F7FF]"
-          >
-            <Settings size={12} />
-            Settings
+          <button type="button" onClick={() => { setShowSettings(true); setShowMenu(false) }} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[#243754] hover:bg-[#F3F7FF]">
+            <Settings size={12} /> Settings
           </button>
-          <button
-            type="button"
-            onClick={() => { onRename(); setShowMenu(false) }}
-            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[#243754] transition-colors hover:bg-[#F3F7FF]"
-          >
+          <button type="button" onClick={() => { onRename(); setShowMenu(false) }} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-[#243754] hover:bg-[#F3F7FF]">
             Rename
           </button>
           {canDelete && (
-            <button
-              type="button"
-              onClick={() => { onDelete(); setShowMenu(false) }}
-              className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-500 transition-colors hover:bg-red-50"
-            >
+            <button type="button" onClick={() => { onDelete(); setShowMenu(false) }} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50">
               Delete
             </button>
           )}
@@ -405,56 +306,21 @@ function PageRow({ page, isActive, onSelect, onRename, onDelete, onUpdate, canDe
             <h3 className="text-sm font-semibold text-[#0F2348] mb-4">Page Settings</h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-[#5E6F8E] mb-1">Page Title (for &lt;title&gt; tag)</label>
-                <input
-                  type="text"
-                  placeholder="Page title"
-                  value={settingsForm.title}
-                  onChange={e => setSettingsForm(p => ({ ...p, title: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-[#D8E1F0] rounded-lg bg-white text-[#0F2348] placeholder:text-[#8A8A8F] outline-none"
-                />
+                <label className="block text-xs font-medium text-[#5E6F8E] mb-1">Page Title</label>
+                <input type="text" placeholder="Page title" value={settingsForm.title} onChange={e => setSettingsForm(p => ({ ...p, title: e.target.value }))} className="w-full px-3 py-2 text-sm border border-[#D8E1F0] rounded-lg bg-white text-[#0F2348] outline-none" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[#5E6F8E] mb-1">Page Slug (URL path)</label>
-                <input
-                  type="text"
-                  placeholder="/page-slug"
-                  value={settingsForm.slug}
-                  onChange={e => setSettingsForm(p => ({
-                    ...p,
-                    slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-                  }))}
-                  className="w-full px-3 py-2 text-sm border border-[#D8E1F0] rounded-lg bg-white text-[#0F2348] placeholder:text-[#8A8A8F] outline-none"
-                />
+                <label className="block text-xs font-medium text-[#5E6F8E] mb-1">Page Slug</label>
+                <input type="text" placeholder="/page-slug" value={settingsForm.slug} onChange={e => setSettingsForm(p => ({ ...p, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') }))} className="w-full px-3 py-2 text-sm border border-[#D8E1F0] rounded-lg bg-white text-[#0F2348] outline-none" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[#5E6F8E] mb-1">
-                  Meta Description ({settingsForm.metaDescription.length}/160)
-                </label>
-                <textarea
-                  placeholder="SEO meta description (160 chars max)"
-                  value={settingsForm.metaDescription}
-                  onChange={e => setSettingsForm(p => ({ ...p, metaDescription: e.target.value.slice(0, 160) }))}
-                  maxLength="160"
-                  className="w-full px-3 py-2 text-sm border border-[#D8E1F0] rounded-lg bg-white text-[#0F2348] placeholder:text-[#8A8A8F] outline-none resize-none h-20"
-                />
+                <label className="block text-xs font-medium text-[#5E6F8E] mb-1">Meta Description ({settingsForm.metaDescription.length}/160)</label>
+                <textarea placeholder="SEO meta description" value={settingsForm.metaDescription} onChange={e => setSettingsForm(p => ({ ...p, metaDescription: e.target.value.slice(0, 160) }))} className="w-full px-3 py-2 text-sm border border-[#D8E1F0] rounded-lg bg-white text-[#0F2348] outline-none resize-none h-20" />
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button
-                type="button"
-                onClick={() => setShowSettings(false)}
-                className="flex-1 px-3 py-2 text-sm font-medium text-[#5E6F8E] bg-[#F3F7FF] rounded-lg hover:bg-[#E3EFFF] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => { onUpdate?.(page.id, settingsForm); setShowSettings(false) }}
-                className="flex-1 px-3 py-2 text-sm font-medium text-white bg-[#2348D7] rounded-lg hover:bg-[#1A3BA0] transition-colors"
-              >
-                Save
-              </button>
+              <button type="button" onClick={() => setShowSettings(false)} className="flex-1 px-3 py-2 text-sm font-medium text-[#5E6F8E] bg-[#F3F7FF] rounded-lg hover:bg-[#E3EFFF]">Cancel</button>
+              <button type="button" onClick={() => { onUpdate?.(page.id, settingsForm); setShowSettings(false) }} className="flex-1 px-3 py-2 text-sm font-medium text-white bg-[#2348D7] rounded-lg hover:bg-[#1A3BA0]">Save</button>
             </div>
           </div>
         </div>
@@ -473,18 +339,24 @@ export default function LeftPanel({
   pages,
   activePageId,
   onSwitchPage,
-  onAddPage,       // now receives { id, name, slug } — no more prompt() needed
+  onAddPage,
   onRenamePage,
   onDeletePage,
   onUpdatePage,
+  onInsert,
+  onDragStart,
+  onDragEnd,
 }) {
-  const tabs = ['Pages', 'Layers']
-  const [search, setSearch]           = useState('')
-  const [hiddenIds, setHiddenIds]     = useState(new Set())
-  const [showAddModal, setShowAddModal] = useState(false)   // ← new
+  // ── renamed to avoid conflict with InsertPanel's internal `tabs` ──
+  const panelTabs = ['Pages', 'Layers', 'Components']
 
-  const layerTree   = useMemo(() => buildLayerTree(elements), [elements])
-  const flatLayers  = useMemo(() => flattenTree(layerTree).filter(node => !node.virtual), [layerTree])
+  const [search, setSearch]             = useState('')
+  const [hiddenIds, setHiddenIds]       = useState(new Set())
+  const [showAddModal, setShowAddModal] = useState(false)
+
+  const layerTree  = useMemo(() => buildLayerTree(elements), [elements])
+  const flatLayers = useMemo(() => flattenTree(layerTree).filter(n => !n.virtual), [layerTree])
+
   const searchTrimmed = search.trim().toLowerCase()
   const filtered = searchTrimmed
     ? flatLayers.filter(node =>
@@ -502,23 +374,23 @@ export default function LeftPanel({
     })
   }, [])
 
-  // Called by AddPageModal with { id, name, slug }
   const handleConfirmAddPage = useCallback(pageData => {
-    onAddPage(pageData)       // hand structured data up to the parent — no prompt()
+    onAddPage(pageData)
     setShowAddModal(false)
   }, [onAddPage])
 
   return (
     <div className="flex h-full w-[316px] shrink-0 select-none flex-col border-r border-[#E6E6E8] bg-white">
+
       {/* ── Tab bar ── */}
       <div className="px-4 pb-4 pt-5">
         <div className="flex rounded-lg bg-[#F3F3F4] p-1">
-          {tabs.map(tab => (
+          {panelTabs.map(tab => (
             <button
               key={tab}
               type="button"
               onClick={() => onTabChange(tab)}
-              className={`h-8 flex-1 rounded-md text-[13px] font-semibold transition-all ${
+              className={`h-8 flex-1 rounded-md text-[12px] font-semibold transition-all ${
                 activeTab === tab
                   ? 'bg-white text-[#111827] shadow-sm'
                   : 'text-[#8A8A8F] hover:text-[#5F6368]'
@@ -529,44 +401,39 @@ export default function LeftPanel({
           ))}
         </div>
 
-        <div className="mt-5 h-px bg-[#E8E8EA]" />
-
-        <button
-          type="button"
-          className="mt-5 flex h-10 w-full items-center gap-2 rounded-lg bg-[#F1F1F2] px-3 text-left text-[13px] font-semibold text-[#5F6368] transition-colors hover:bg-[#EAEAEC]"
-        >
-          <Folder size={15} className="text-[#8A8A8F]" />
-          <span className="min-w-0 flex-1 truncate">/{activePageId || 'home'}</span>
-          <ChevronDown size={14} className="text-[#8A8A8F]" />
-        </button>
-
-        <div className="mt-3 flex h-10 items-center gap-2 rounded-lg bg-[#F1F1F2] px-3">
-          <Search size={15} className="shrink-0 text-[#8A8A8F]" />
-          <input
-            type="text"
-            placeholder="Search..."
-            value={search}
-            onChange={event => setSearch(event.target.value)}
-            className="w-full bg-transparent text-[13px] text-[#3F3F46] outline-none placeholder:text-[#8A8A8F]"
-          />
-        </div>
-
-        <div className="mt-5 h-px bg-[#E8E8EA]" />
+        {/* Only show folder + search for Pages and Layers tabs */}
+        {activeTab !== 'Components' && (
+          <>
+            <div className="mt-5 h-px bg-[#E8E8EA]" />
+            <button type="button" className="mt-5 flex h-10 w-full items-center gap-2 rounded-lg bg-[#F1F1F2] px-3 text-left text-[13px] font-semibold text-[#5F6368] hover:bg-[#EAEAEC]">
+              <Folder size={15} className="text-[#8A8A8F]" />
+              <span className="min-w-0 flex-1 truncate">/{activePageId || 'home'}</span>
+              <ChevronDown size={14} className="text-[#8A8A8F]" />
+            </button>
+            <div className="mt-3 flex h-10 items-center gap-2 rounded-lg bg-[#F1F1F2] px-3">
+              <Search size={15} className="shrink-0 text-[#8A8A8F]" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full bg-transparent text-[13px] text-[#3F3F46] outline-none placeholder:text-[#8A8A8F]"
+              />
+            </div>
+            <div className="mt-5 h-px bg-[#E8E8EA]" />
+          </>
+        )}
       </div>
 
       {/* ── Content area ── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className={`flex-1 overflow-hidden ${activeTab !== 'Components' ? 'overflow-y-auto px-4 py-4' : ''}`}>
+
+        {/* ── Pages ── */}
         {activeTab === 'Pages' && (
           <div>
             <div className="mb-1 flex items-center justify-between px-2 py-1">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[#94A3BD]">Pages</span>
-              {/* ↓ Now opens the modal instead of calling onAddPage directly */}
-              <button
-                type="button"
-                onClick={() => setShowAddModal(true)}
-                className="rounded-lg p-1 text-[#94A3BD] transition-colors hover:bg-[#EEF6FF] hover:text-[#0B74DE]"
-                title="Add page"
-              >
+              <button type="button" onClick={() => setShowAddModal(true)} className="rounded-lg p-1 text-[#94A3BD] hover:bg-[#EEF6FF] hover:text-[#0B74DE]" title="Add page">
                 <Plus size={14} />
               </button>
             </div>
@@ -585,23 +452,24 @@ export default function LeftPanel({
           </div>
         )}
 
+        {/* ── Layers ── */}
         {activeTab === 'Layers' && (
           <div>
             {elements.length === 0 ? (
               <p className="py-8 text-center text-xs text-[#C5D0E4]">No layers yet</p>
             ) : filtered ? (
-              filtered.length === 0 ? (
-                <p className="py-8 text-center text-xs text-[#C5D0E4]">No results</p>
-              ) : filtered.map(node => (
-                <LayerRow
-                  key={node.id}
-                  node={{ ...node, children: [] }}
-                  selectedId={selectedId}
-                  onSelect={onSelect}
-                  hiddenIds={hiddenIds}
-                  onToggleHide={toggleHide}
-                />
-              ))
+              filtered.length === 0
+                ? <p className="py-8 text-center text-xs text-[#C5D0E4]">No results</p>
+                : filtered.map(node => (
+                    <LayerRow
+                      key={node.id}
+                      node={{ ...node, children: [] }}
+                      selectedId={selectedId}
+                      onSelect={onSelect}
+                      hiddenIds={hiddenIds}
+                      onToggleHide={toggleHide}
+                    />
+                  ))
             ) : (
               layerTree.map(node => (
                 <LayerRow
@@ -616,9 +484,20 @@ export default function LeftPanel({
             )}
           </div>
         )}
+
+        {/* ── Components ── */}
+        {activeTab === 'Components' && (
+          <div className="h-full overflow-hidden">
+            <InsertPanel
+              onInsert={onInsert}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+            />
+          </div>
+        )}
       </div>
 
-      {/* ── Add Page Modal (portal-free, renders above everything via z-index) ── */}
+      {/* ── Add Page Modal ── */}
       {showAddModal && (
         <AddPageModal
           onConfirm={handleConfirmAddPage}
@@ -629,10 +508,10 @@ export default function LeftPanel({
   )
 }
 
-// ─── Tree helpers (unchanged) ─────────────────────────────────────────────────
+// ─── Tree helpers ─────────────────────────────────────────────────────────────
 function buildLayerTree(elements) {
   const displayRoots = inferContainerHierarchy(elements)
-  const count = flattenTree(displayRoots).filter(node => !node.virtual).length
+  const count = flattenTree(displayRoots).filter(n => !n.virtual).length
   return [{
     id: '__desktop-root',
     type: 'desktop',
@@ -649,16 +528,16 @@ function buildLayerTree(elements) {
 }
 
 function inferContainerHierarchy(elements) {
-  const nodes = elements.map(element => ({
-    ...element,
-    children: Array.isArray(element.children) ? element.children.map(child => ({ ...child })) : [],
+  const nodes = elements.map(el => ({
+    ...el,
+    children: Array.isArray(el.children) ? el.children.map(c => ({ ...c })) : [],
   }))
-  const byId = new Map(nodes.map(node => [node.id, node]))
+  const byId     = new Map(nodes.map(n => [n.id, n]))
   const assigned = new Set()
 
   nodes.forEach(child => {
     if (assigned.has(child.id)) return
-    if (child.children?.length) child.children.forEach(grandchild => assigned.add(grandchild.id))
+    if (child.children?.length) child.children.forEach(gc => assigned.add(gc.id))
     const parent = findBestVisualParent(child, nodes)
     if (!parent) return
     parent.children = [...(parent.children || []), child]
@@ -666,7 +545,7 @@ function inferContainerHierarchy(elements) {
   })
 
   return nodes
-    .filter(node => !assigned.has(node.id) && byId.has(node.id))
+    .filter(n => !assigned.has(n.id) && byId.has(n.id))
     .sort(compareLayers)
     .map(sortChildren)
 }
@@ -675,33 +554,40 @@ function findBestVisualParent(child, candidates) {
   const childBox = getBox(child)
   if (!childBox) return null
   return candidates
-    .filter(candidate =>
-      candidate.id !== child.id &&
-      isContainerType(candidate.type) &&
-      !isContainedBy(child, candidate) &&
-      containsBox(getBox(candidate), childBox)
+    .filter(c =>
+      c.id !== child.id &&
+      isContainerType(c.type) &&
+      !isContainedBy(child, c) &&
+      containsBox(getBox(c), childBox)
     )
     .sort((a, b) => area(getBox(a)) - area(getBox(b)))[0] || null
 }
 
 function isContainedBy(child, candidate) {
-  return candidate.children?.some(node => node.id === child.id)
+  return candidate.children?.some(n => n.id === child.id)
 }
 
 function containsBox(parent, child) {
   if (!parent || !child) return false
   if (area(parent) <= area(child)) return false
-  const tolerance = 2
+  const t = 2
   return (
-    child.x >= parent.x - tolerance &&
-    child.y >= parent.y - tolerance &&
-    child.x + child.width <= parent.x + parent.width + tolerance &&
-    child.y + child.height <= parent.y + parent.height + tolerance
+    child.x >= parent.x - t &&
+    child.y >= parent.y - t &&
+    child.x + child.width  <= parent.x + parent.width  + t &&
+    child.y + child.height <= parent.y + parent.height + t
   )
 }
 
+// ── THE KEY FIX: reads from element.desktop after responsive.js migration ──
 function getBox(node) {
-  return { x: node.x ?? 0, y: node.y ?? 0, width: node.width ?? 0, height: node.height ?? 0 }
+  const src = (node.desktop && typeof node.desktop === 'object') ? node.desktop : node
+  return {
+    x:      src.x      ?? 0,
+    y:      src.y      ?? 0,
+    width:  src.width  ?? 0,
+    height: src.height ?? 0,
+  }
 }
 
 function area(box) {
@@ -713,9 +599,9 @@ function isContainerType(type) {
 }
 
 function compareLayers(a, b) {
-  const ay = a.y ?? 0; const by = b.y ?? 0
-  if (ay !== by) return ay - by
-  return (a.x ?? 0) - (b.x ?? 0)
+  const aBox = getBox(a), bBox = getBox(b)
+  if (aBox.y !== bBox.y) return aBox.y - bBox.y
+  return aBox.x - bBox.x
 }
 
 function sortChildren(node) {
@@ -723,13 +609,13 @@ function sortChildren(node) {
 }
 
 function flattenTree(nodes, result = []) {
-  nodes.forEach(node => { result.push(node); if (node.children?.length) flattenTree(node.children, result) })
+  nodes.forEach(n => { result.push(n); if (n.children?.length) flattenTree(n.children, result) })
   return result
 }
 
 function containsNode(nodes, id) {
   if (!id) return false
-  return nodes.some(node => node.id === id || (node.children?.length && containsNode(node.children, id)))
+  return nodes.some(n => n.id === id || (n.children?.length && containsNode(n.children, id)))
 }
 
 function getLayerLabel(node, meta) {
@@ -739,7 +625,7 @@ function getLayerLabel(node, meta) {
   return meta?.label || node.type || 'Layer'
 }
 
-// ─── Icons (unchanged) ───────────────────────────────────────────────────────
+// ─── Icons ────────────────────────────────────────────────────────────────────
 function DesktopIcon({ size = 12 }) {
   return <svg width={size} height={size} viewBox="0 0 14 14" fill="none"><rect x="1.5" y="2" width="11" height="7.5" rx="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5 12h4M7 9.5V12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
 }

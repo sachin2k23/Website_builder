@@ -629,3 +629,6 @@ export function applySmartResponsive(elements, desktopCanvasWidth = 1200) {
 
   return autoResponsive(result, desktopCanvasWidth, { preserveExisting: false })
 }
+
+
+

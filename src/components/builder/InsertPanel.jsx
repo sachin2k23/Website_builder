@@ -121,6 +121,11 @@ import {
   Dribbble,
 } from 'lucide-react'
 
+// Find this line:
+const tabs = ['Pages', 'Layers']
+
+// Replace with:
+const panelTabs  = ['Pages', 'Layers', 'Components']
 // ─── Helpers (identical to original) ─────────────────────────────────────────
 
 const common = { children: [], opacity: 100, shadowColor: null, textColor: '#111827' }

@@ -1,18 +1,24 @@
-﻿import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import {
   ChevronDown, X,
   BringToFront, SendToBack,
   ArrowUp, ArrowDown,
   Upload, ImageIcon,
   Link, ExternalLink, Hash, FileText, ChevronRight,
+  Eye, EyeOff,
 } from 'lucide-react'
 import { HexColorPicker } from 'react-colorful'
 import { BREAKPOINTS, getCanvasWidth } from '../../utils/responsive'
 import BoxModelVisual from './box-model/BoxModelVisual'
 
-/**
- * Section component - Clean collapsible panel
- */
+// Keys that belong on the element root, NOT inside a breakpoint bucket.
+const GLOBAL_ELEMENT_KEYS = new Set([
+  'content', 'src', 'alt', 'href', 'objectFit',
+  'label', 'name', 'iconSet',
+  'linkType', 'linkHref', 'linkPage', 'linkAnchor',
+  'linkTarget', 'linkPageAnchor',
+])
+
 function Section({ title, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
@@ -29,9 +35,6 @@ function Section({ title, children, defaultOpen = true }) {
   )
 }
 
-/**
- * NumberInput component - For layout and numeric properties
- */
 function NumberInput({ label, value, suffix, onChange }) {
   return (
     <div>
@@ -41,7 +44,6 @@ function NumberInput({ label, value, suffix, onChange }) {
           type="text"
           inputMode="numeric"
           value={value ?? ''}
-          // FIX: prevent Backspace/Delete from bubbling up to canvas keyboard handler
           onKeyDown={(e) => e.stopPropagation()}
           onChange={e => {
             const val = e.target.value
@@ -57,9 +59,6 @@ function NumberInput({ label, value, suffix, onChange }) {
   )
 }
 
-/**
- * ColorRow component - For color properties with picker
- */
 function ColorRow({ label, color, onChange, onRemove }) {
   const [open, setOpen] = useState(false)
   const safeColor = color || '#ffffff'
@@ -77,10 +76,7 @@ function ColorRow({ label, color, onChange, onRemove }) {
             <span className="text-xs text-[#0F2348] font-mono">{safeColor.replace('#', '').toUpperCase()}</span>
           </button>
           {onRemove && (
-            <button
-              onClick={onRemove}
-              className="text-[#AAB8D4] hover:text-red-400 transition-colors p-1"
-            >
+            <button onClick={onRemove} className="text-[#AAB8D4] hover:text-red-400 transition-colors p-1">
               <X size={14} />
             </button>
           )}
@@ -91,10 +87,7 @@ function ColorRow({ label, color, onChange, onRemove }) {
         <div className="absolute right-0 z-[100] bg-white border border-[#D8E1F0] rounded-xl shadow-xl p-3 w-[240px] mt-1">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[#0F2348] text-xs font-semibold">{label}</span>
-            <button
-              onClick={() => setOpen(false)}
-              className="text-[#AAB8D4] hover:text-[#0F2348] transition-colors"
-            >
+            <button onClick={() => setOpen(false)} className="text-[#AAB8D4] hover:text-[#0F2348] transition-colors">
               <X size={14} />
             </button>
           </div>
@@ -118,9 +111,6 @@ function ColorRow({ label, color, onChange, onRemove }) {
   )
 }
 
-/**
- * ImageUploadSection - For image elements
- */
 function ImageUploadSection({ selected, onUpdate }) {
   const fileRef = useRef(null)
   const [dragging, setDragging] = useState(false)
@@ -130,7 +120,7 @@ function ImageUploadSection({ selected, onUpdate }) {
   const handleFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return
     const reader = new FileReader()
-    reader.onload = e => onUpdate(selected.id, { src: e.target.result })
+    reader.onload = e => onUpdate(selected.id, { src: e.target.result }, { global: true })
     reader.readAsDataURL(file)
   }
 
@@ -141,7 +131,7 @@ function ImageUploadSection({ selected, onUpdate }) {
   }
 
   const applyUrl = () => {
-    if (urlValue.trim()) onUpdate(selected.id, { src: urlValue.trim() })
+    if (urlValue.trim()) onUpdate(selected.id, { src: urlValue.trim() }, { global: true })
   }
 
   return (
@@ -165,17 +155,13 @@ function ImageUploadSection({ selected, onUpdate }) {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => { onUpdate(selected.id, { src: null }); setUrlValue('') }}
+              onClick={() => { onUpdate(selected.id, { src: null }, { global: true }); setUrlValue('') }}
               className="flex-1 py-2 rounded-lg border border-[#E2E8F4] text-[#5E6F8E] text-xs hover:border-[#2348D7] hover:text-[#2348D7] hover:bg-[#EEF3FF] transition-all font-medium"
-            >
-              Replace
-            </button>
+            >Replace</button>
             <button
-              onClick={() => { onUpdate(selected.id, { src: null }); setUrlValue('') }}
+              onClick={() => { onUpdate(selected.id, { src: null }, { global: true }); setUrlValue('') }}
               className="px-3 py-2 rounded-lg border border-[#FFE4E4] text-red-400 text-xs hover:bg-red-50 transition-all"
-            >
-              <X size={14} />
-            </button>
+            ><X size={14} /></button>
           </div>
         </div>
       ) : tab === 'upload' ? (
@@ -185,10 +171,7 @@ function ImageUploadSection({ selected, onUpdate }) {
           onDrop={handleDrop}
           onClick={() => fileRef.current?.click()}
           className="w-full flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed cursor-pointer transition-all py-6"
-          style={{
-            borderColor: dragging ? '#2348D7' : '#D8E1F0',
-            backgroundColor: dragging ? '#EEF3FF' : '#F7F9FD',
-          }}
+          style={{ borderColor: dragging ? '#2348D7' : '#D8E1F0', backgroundColor: dragging ? '#EEF3FF' : '#F7F9FD' }}
         >
           <ImageIcon size={20} className={dragging ? 'text-[#2348D7]' : 'text-[#AAB8D4]'} />
           <div className="text-center">
@@ -207,10 +190,7 @@ function ImageUploadSection({ selected, onUpdate }) {
             onChange={e => setUrlValue(e.target.value)}
             className="w-full px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg outline-none focus:border-[#2348D7] placeholder-[#C5D0E4] transition-colors"
           />
-          <button
-            onClick={applyUrl}
-            className="w-full py-2 bg-[#2348D7] text-white text-xs font-semibold rounded-lg hover:bg-[#1B3FC8] transition-colors"
-          >
+          <button onClick={applyUrl} className="w-full py-2 bg-[#2348D7] text-white text-xs font-semibold rounded-lg hover:bg-[#1B3FC8] transition-colors">
             Apply URL
           </button>
         </div>
@@ -223,15 +203,12 @@ function ImageUploadSection({ selected, onUpdate }) {
             {['cover', 'contain', 'fill'].map(fit => (
               <button
                 key={fit}
-                onClick={() => onUpdate(selected.id, { objectFit: fit })}
+                onClick={() => onUpdate(selected.id, { objectFit: fit }, { global: true })}
                 className={`px-2 py-1 rounded text-[10px] border transition-colors capitalize font-medium ${(selected.objectFit || 'cover') === fit ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'}`}
-              >
-                {fit}
-              </button>
+              >{fit}</button>
             ))}
           </div>
         </div>
-
         <div>
           <p className="text-[#AAB8D4] text-[9px] font-medium mb-1.5">Alt text</p>
           <input
@@ -239,7 +216,7 @@ function ImageUploadSection({ selected, onUpdate }) {
             placeholder="Describe the image…"
             value={selected.alt || ''}
             onKeyDown={(e) => e.stopPropagation()}
-            onChange={e => onUpdate(selected.id, { alt: e.target.value })}
+            onChange={e => onUpdate(selected.id, { alt: e.target.value }, { global: true })}
             className="w-full px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg outline-none focus:border-[#2348D7] transition-colors placeholder-[#C5D0E4]"
           />
         </div>
@@ -248,21 +225,16 @@ function ImageUploadSection({ selected, onUpdate }) {
   )
 }
 
-// ─── LINK SECTION ────────────────────────────────────────────────────────────
-
 const LINK_TYPES = [
-  { id: 'none',   label: 'None',   icon: X          },
-  { id: 'page',   label: 'Page',   icon: FileText   },
+  { id: 'none',   label: 'None',   icon: X           },
+  { id: 'page',   label: 'Page',   icon: FileText    },
   { id: 'url',    label: 'URL',    icon: ExternalLink },
-  { id: 'anchor', label: 'Anchor', icon: Hash       },
+  { id: 'anchor', label: 'Anchor', icon: Hash        },
 ]
 
-/**
- * LinkSection - Full page/URL/anchor linking panel
- */
 function LinkSection({ selected, onUpdate, pages = [] }) {
-  const linkType   = selected.linkType || 'none'
-  const update     = (patch) => onUpdate(selected.id, patch)
+  const linkType = selected.linkType || 'none'
+  const updateGlobal = (patch) => onUpdate(selected.id, patch, { global: true })
 
   const resolvedHref = (() => {
     if (linkType === 'url')    return selected.linkHref   || ''
@@ -273,28 +245,21 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
 
   return (
     <Section title="Link" defaultOpen={false}>
-      {/* ── Type pills ── */}
       <div>
         <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Link Type</p>
         <div className="grid grid-cols-4 gap-1">
           {LINK_TYPES.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => update({ linkType: id, link: id === 'none' ? '' : selected.link })}
-              className={`flex flex-col items-center gap-1 py-2 rounded-lg border text-[9px] font-semibold transition-all ${
-                linkType === id
-                  ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
-                  : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7] hover:text-[#2348D7] hover:bg-[#F8FAFF]'
-              }`}
+              onClick={() => updateGlobal({ linkType: id, link: id === 'none' ? '' : selected.link })}
+              className={`flex flex-col items-center gap-1 py-2 rounded-lg border text-[9px] font-semibold transition-all ${linkType === id ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7] hover:text-[#2348D7] hover:bg-[#F8FAFF]'}`}
             >
-              <Icon size={12} />
-              {label}
+              <Icon size={12} />{label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── None state ── */}
       {linkType === 'none' && (
         <div className="flex items-center gap-2 py-2 px-3 bg-[#F7F9FD] rounded-lg border border-[#EEF2FA]">
           <Link size={12} className="text-[#C5D0E4]" />
@@ -302,7 +267,6 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
         </div>
       )}
 
-      {/* ── Page link ── */}
       {linkType === 'page' && (
         <div className="space-y-2">
           <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider">Target Page</p>
@@ -315,25 +279,15 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
               {pages.map(page => (
                 <button
                   key={page.id}
-                  onClick={() => update({ linkPage: page.id, link: `/${page.id}` })}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
-                    selected.linkPage === page.id
-                      ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
-                      : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7] hover:bg-[#F8FAFF]'
-                  }`}
+                  onClick={() => updateGlobal({ linkPage: page.id, link: `/${page.id}` })}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-medium transition-all ${selected.linkPage === page.id ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7] hover:bg-[#F8FAFF]'}`}
                 >
-                  <div className="flex items-center gap-2">
-                    <FileText size={11} />
-                    <span>{page.name}</span>
-                  </div>
-                  {selected.linkPage === page.id && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#2348D7]" />
-                  )}
+                  <div className="flex items-center gap-2"><FileText size={11} /><span>{page.name}</span></div>
+                  {selected.linkPage === page.id && <div className="w-1.5 h-1.5 rounded-full bg-[#2348D7]" />}
                 </button>
               ))}
             </div>
           )}
-
           <div>
             <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-1.5">
               Scroll to section <span className="text-[#C5D0E4] font-normal normal-case">(optional)</span>
@@ -345,7 +299,7 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
                 placeholder="section-id"
                 value={selected.linkPageAnchor || ''}
                 onKeyDown={(e) => e.stopPropagation()}
-                onChange={e => update({ linkPageAnchor: e.target.value.replace(/\s/g, '-').toLowerCase() })}
+                onChange={e => updateGlobal({ linkPageAnchor: e.target.value.replace(/\s/g, '-').toLowerCase() })}
                 className="flex-1 px-2 py-2 text-xs text-[#0F2348] bg-transparent outline-none placeholder-[#C5D0E4]"
               />
             </div>
@@ -353,7 +307,6 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
         </div>
       )}
 
-      {/* ── External URL ── */}
       {linkType === 'url' && (
         <div className="space-y-2">
           <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider">URL</p>
@@ -364,14 +317,13 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
               placeholder="https://example.com"
               value={selected.linkHref || ''}
               onKeyDown={(e) => e.stopPropagation()}
-              onChange={e => update({ linkHref: e.target.value, link: e.target.value })}
+              onChange={e => updateGlobal({ linkHref: e.target.value, link: e.target.value })}
               className="flex-1 px-2 py-2 text-xs text-[#0F2348] bg-transparent outline-none placeholder-[#C5D0E4]"
             />
           </div>
         </div>
       )}
 
-      {/* ── Anchor / scroll target ── */}
       {linkType === 'anchor' && (
         <div className="space-y-2">
           <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider">Section ID</p>
@@ -384,7 +336,7 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
               onKeyDown={(e) => e.stopPropagation()}
               onChange={e => {
                 const val = e.target.value.replace(/\s/g, '-').toLowerCase()
-                update({ linkAnchor: val, link: `#${val}` })
+                updateGlobal({ linkAnchor: val, link: `#${val}` })
               }}
               className="flex-1 px-2 py-2 text-xs text-[#0F2348] bg-transparent outline-none placeholder-[#C5D0E4]"
             />
@@ -393,32 +345,21 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
         </div>
       )}
 
-      {/* ── Open in / Target ── */}
       {linkType !== 'none' && (
         <div>
           <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Open in</p>
           <div className="flex gap-1">
-            {[
-              { val: '_self',  label: 'Same tab' },
-              { val: '_blank', label: 'New tab'  },
-            ].map(opt => (
+            {[{ val: '_self', label: 'Same tab' }, { val: '_blank', label: 'New tab' }].map(opt => (
               <button
                 key={opt.val}
-                onClick={() => update({ linkTarget: opt.val })}
-                className={`flex-1 py-1.5 rounded-lg border text-[10px] font-medium transition-all ${
-                  (selected.linkTarget || '_self') === opt.val
-                    ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
-                    : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'
-                }`}
-              >
-                {opt.label}
-              </button>
+                onClick={() => updateGlobal({ linkTarget: opt.val })}
+                className={`flex-1 py-1.5 rounded-lg border text-[10px] font-medium transition-all ${(selected.linkTarget || '_self') === opt.val ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'}`}
+              >{opt.label}</button>
             ))}
           </div>
         </div>
       )}
 
-      {/* ── Resolved href preview ── */}
       {resolvedHref && (
         <div className="flex items-center gap-2 py-2 px-3 bg-[#F3F6FB] rounded-lg border border-[#E2E8F4]">
           <ChevronRight size={10} className="text-[#2348D7] shrink-0" />
@@ -429,13 +370,8 @@ function LinkSection({ selected, onUpdate, pages = [] }) {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 const TEXT_TYPES = ['heading', 'paragraph', 'text', 'link', 'button', 'label']
 
-/**
- * RightPanel - Main properties panel
- */
 export default function RightPanel({
   selected,
   onUpdate,
@@ -460,10 +396,25 @@ export default function RightPanel({
 
   const isText  = selected && TEXT_TYPES.includes(selected.type)
   const isImage = selected?.type === 'image'
-  const update  = (key, val) => { if (selected) onUpdate(selected.id, { [key]: val }) }
+
+  const update = (key, val) => {
+    if (!selected) return
+    if (GLOBAL_ELEMENT_KEYS.has(key)) {
+      onUpdate(selected.id, { [key]: val }, { global: true })
+      return
+    }
+    onUpdate(selected.id, { [key]: val })
+  }
+
+  const updateGlobal = (patch) => {
+    if (selected) onUpdate(selected.id, patch, { global: true })
+  }
 
   const breakpoint  = BREAKPOINTS.find(bp => bp.id === activeBreakpoint)
   const canvasWidth = getCanvasWidth(activeBreakpoint, canvasSettings, customWidth)
+
+  // Per-breakpoint visibility
+  const isHiddenOnBreakpoint = selected?.[activeBreakpoint]?.display === 'none'
 
   return (
     <div className="w-[280px] h-full bg-white border-l border-[#D8E1F0] flex flex-col shrink-0 overflow-y-auto">
@@ -477,14 +428,29 @@ export default function RightPanel({
                 <p className="text-[#0F2348] text-sm font-bold mt-1 capitalize">{selected.type}</p>
                 <p className="text-[#2348D7] text-[9px] font-semibold mt-1">{breakpoint?.label}</p>
               </div>
+
               <div className="flex gap-1">
+                {/* Duplicate */}
                 <button
                   onClick={() => onDuplicate(selected.id)}
                   title="Duplicate"
                   className="w-8 h-8 rounded-lg flex items-center justify-center border border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7] hover:text-[#2348D7] hover:bg-[#EEF3FF] transition-all text-sm font-semibold"
+                >⧉</button>
+
+                {/* Per-breakpoint visibility toggle */}
+                <button
+                  onClick={() => onUpdate(selected.id, { display: isHiddenOnBreakpoint ? 'block' : 'none' })}
+                  title={isHiddenOnBreakpoint ? `Show on ${breakpoint?.label}` : `Hide on ${breakpoint?.label}`}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${
+                    isHiddenOnBreakpoint
+                      ? 'border-amber-300 text-amber-500 bg-amber-50'
+                      : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-amber-300 hover:text-amber-500 hover:bg-amber-50'
+                  }`}
                 >
-                  ⧉
+                  {isHiddenOnBreakpoint ? <EyeOff size={13} /> : <Eye size={13} />}
                 </button>
+
+                {/* Delete */}
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
                   title="Delete"
@@ -499,47 +465,49 @@ export default function RightPanel({
             <input
               type="text"
               value={selected.label || selected.type}
-              onChange={(e) => onUpdate(selected.id, { label: e.target.value })}
-              // FIX: prevent Backspace from bubbling to canvas and deleting the element
+              onChange={(e) => updateGlobal({ label: e.target.value })}
               onKeyDown={(e) => e.stopPropagation()}
               placeholder="Element name"
               className="w-full px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded outline-none focus:border-[#2348D7] transition-colors"
             />
 
-            {/* Delete Confirmation Dialog */}
+            {/* Visibility banner */}
+            {isHiddenOnBreakpoint && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                <EyeOff size={12} className="text-amber-500 shrink-0" />
+                <span className="text-amber-600 text-[10px] font-medium">
+                  Hidden on {breakpoint?.label}
+                </span>
+              </div>
+            )}
+
+            {/* Delete Confirmation */}
             {showDeleteConfirm && (
               <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[100]">
                 <div className="bg-white rounded-lg shadow-xl p-4 w-96 max-w-[calc(100%-2rem)]">
                   <h3 className="text-sm font-bold text-[#0F2348] mb-2">Delete Element?</h3>
-                  <p className="text-xs text-[#5E6F8E] mb-4">This action cannot be undone. The element will be permanently deleted.</p>
+                  <p className="text-xs text-[#5E6F8E] mb-4">This action cannot be undone.</p>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => {
-                        onDelete(selected.id)
-                        setShowDeleteConfirm(false)
-                      }}
+                      onClick={() => { onDelete(selected.id); setShowDeleteConfirm(false) }}
                       className="flex-1 py-2 bg-red-500 text-white text-xs font-medium rounded hover:bg-red-600 transition-colors"
-                    >
-                      Delete
-                    </button>
+                    >Delete</button>
                     <button
                       onClick={() => setShowDeleteConfirm(false)}
                       className="flex-1 py-2 bg-[#F3F6FB] text-[#5E6F8E] text-xs font-medium rounded hover:bg-[#E3ECFF] transition-colors"
-                    >
-                      Cancel
-                    </button>
+                    >Cancel</button>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* ── Content field for text elements ── */}
+          {/* Content */}
           {isText && (
             <Section title="Content" defaultOpen={true}>
               <textarea
                 value={selected.content || ''}
-                onChange={(e) => onUpdate(selected.id, { content: e.target.value })}
+                onChange={(e) => updateGlobal({ content: e.target.value })}
                 onKeyDown={(e) => e.stopPropagation()}
                 placeholder="Element text..."
                 className="w-full h-24 px-3 py-2 text-xs text-[#0F2348] bg-[#F3F6FB] border border-[#E2E8F4] rounded outline-none focus:border-[#2348D7] resize-none"
@@ -547,13 +515,11 @@ export default function RightPanel({
             </Section>
           )}
 
-          {/* ── Image upload ── */}
           {isImage && <ImageUploadSection selected={selected} onUpdate={onUpdate} />}
 
-          {/* ── LINK — after Content ── */}
           <LinkSection selected={selected} onUpdate={onUpdate} pages={pages} />
 
-          {/* ── LAYOUT ── */}
+          {/* Layout */}
           <Section title="Layout" defaultOpen={true}>
             <div className="space-y-3">
               <div>
@@ -571,11 +537,10 @@ export default function RightPanel({
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <NumberInput label="Rotation" value={Math.round(selected.rotation || 0)} suffix="°" onChange={val => update('rotation', val)} />
-                <NumberInput label="Z-Index"  value={Math.round(selected.zIndex   || 0)}            onChange={val => update('zIndex',    val)} />
+                <NumberInput label="Rotation" value={Math.round(selected.rotation || 0)} suffix="°"  onChange={val => update('rotation', val)} />
+                <NumberInput label="Z-Index"  value={Math.round(selected.zIndex   || 0)}             onChange={val => update('zIndex',    val)} />
               </div>
 
-              {/* Display mode */}
               <div>
                 <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Display</p>
                 <div className="grid grid-cols-3 gap-1">
@@ -583,48 +548,26 @@ export default function RightPanel({
                     <button
                       key={mode}
                       onClick={() => {
-                        const updateObj = { display: mode }
-                        if (mode === 'flex') {
-                          updateObj.flexDirection  = 'row'
-                          updateObj.alignItems     = 'center'
-                          updateObj.justifyContent = 'flex-start'
-                          updateObj.gap            = 8
-                        } else if (mode === 'grid') {
-                          updateObj.gridCols = 2
-                          updateObj.gap      = 16
-                        }
-                        onUpdate(selected.id, updateObj)
+                        const obj = { display: mode }
+                        if (mode === 'flex') { obj.flexDirection = 'row'; obj.alignItems = 'center'; obj.justifyContent = 'flex-start'; obj.gap = 8 }
+                        if (mode === 'grid') { obj.gridCols = 2; obj.gap = 16 }
+                        onUpdate(selected.id, obj)
                       }}
-                      className={`py-1.5 rounded text-[10px] font-semibold capitalize transition-colors border ${
-                        (selected.display || 'block') === mode
-                          ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
-                          : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'
-                      }`}
-                    >
-                      {mode}
-                    </button>
+                      className={`py-1.5 rounded text-[10px] font-semibold capitalize transition-colors border ${(selected.display || 'block') === mode ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'}`}
+                    >{mode}</button>
                   ))}
                 </div>
               </div>
 
-              {/* Flex options */}
               {selected.display === 'flex' && (
                 <div className="space-y-2 pt-2 border-t border-[#EEF2FA]">
                   <div>
                     <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Direction</p>
                     <div className="grid grid-cols-2 gap-1">
                       {['row', 'column'].map(dir => (
-                        <button
-                          key={dir}
-                          onClick={() => onUpdate(selected.id, { flexDirection: dir })}
-                          className={`py-1.5 rounded text-[9px] font-semibold capitalize transition-colors border ${
-                            (selected.flexDirection || 'row') === dir
-                              ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
-                              : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'
-                          }`}
-                        >
-                          {dir}
-                        </button>
+                        <button key={dir} onClick={() => onUpdate(selected.id, { flexDirection: dir })}
+                          className={`py-1.5 rounded text-[9px] font-semibold capitalize transition-colors border ${(selected.flexDirection || 'row') === dir ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'}`}
+                        >{dir}</button>
                       ))}
                     </div>
                   </div>
@@ -632,17 +575,9 @@ export default function RightPanel({
                     <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Align Items</p>
                     <div className="grid grid-cols-2 gap-1">
                       {['flex-start', 'center', 'flex-end', 'stretch'].map(align => (
-                        <button
-                          key={align}
-                          onClick={() => onUpdate(selected.id, { alignItems: align })}
-                          className={`py-1.5 rounded text-[9px] font-semibold transition-colors border ${
-                            (selected.alignItems || 'center') === align
-                              ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
-                              : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'
-                          }`}
-                        >
-                          {align.replace('flex-', '')}
-                        </button>
+                        <button key={align} onClick={() => onUpdate(selected.id, { alignItems: align })}
+                          className={`py-1.5 rounded text-[9px] font-semibold transition-colors border ${(selected.alignItems || 'center') === align ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'}`}
+                        >{align.replace('flex-', '')}</button>
                       ))}
                     </div>
                   </div>
@@ -650,17 +585,9 @@ export default function RightPanel({
                     <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Justify Content</p>
                     <div className="grid grid-cols-2 gap-1">
                       {['flex-start', 'center', 'flex-end', 'space-between'].map(justify => (
-                        <button
-                          key={justify}
-                          onClick={() => onUpdate(selected.id, { justifyContent: justify })}
-                          className={`py-1.5 rounded text-[9px] font-semibold transition-colors border ${
-                            (selected.justifyContent || 'flex-start') === justify
-                              ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
-                              : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'
-                          }`}
-                        >
-                          {justify.replace('flex-', '')}
-                        </button>
+                        <button key={justify} onClick={() => onUpdate(selected.id, { justifyContent: justify })}
+                          className={`py-1.5 rounded text-[9px] font-semibold transition-colors border ${(selected.justifyContent || 'flex-start') === justify ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'}`}
+                        >{justify.replace('flex-', '')}</button>
                       ))}
                     </div>
                   </div>
@@ -668,7 +595,6 @@ export default function RightPanel({
                 </div>
               )}
 
-              {/* Grid options */}
               {selected.display === 'grid' && (
                 <div className="space-y-2 pt-2 border-t border-[#EEF2FA]">
                   <NumberInput label="Columns" value={selected.gridCols || 2}  onChange={val => onUpdate(selected.id, { gridCols: Math.max(1, val) })} />
@@ -678,38 +604,25 @@ export default function RightPanel({
             </div>
           </Section>
 
-          {/* ── SPACING / BOX MODEL ── */}
           <BoxModelVisual element={selected} onUpdate={onUpdate} />
 
-          {/* ── APPEARANCE ── */}
+          {/* Appearance */}
           <Section title="Appearance" defaultOpen={true}>
             <div className="space-y-3">
-              {!isImage && (
-                <ColorRow label="Background" color={selected.fill || '#ffffff'} onChange={val => update('fill', val)} />
-              )}
+              {!isImage && <ColorRow label="Background" color={selected.fill || '#ffffff'} onChange={val => update('fill', val)} />}
               <NumberInput label="Border Radius" value={Math.round(selected.radius || 0)} suffix="px" onChange={val => update('radius', val)} />
 
-              {/* Overflow */}
               <div>
                 <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Overflow</p>
                 <div className="grid grid-cols-3 gap-1">
                   {['visible', 'hidden', 'scroll'].map(mode => (
-                    <button
-                      key={mode}
-                      onClick={() => onUpdate(selected.id, { overflow: mode })}
-                      className={`py-1.5 rounded text-[9px] font-semibold capitalize transition-colors border ${
-                        (selected.overflow || 'visible') === mode
-                          ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]'
-                          : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'
-                      }`}
-                    >
-                      {mode}
-                    </button>
+                    <button key={mode} onClick={() => onUpdate(selected.id, { overflow: mode })}
+                      className={`py-1.5 rounded text-[9px] font-semibold capitalize transition-colors border ${(selected.overflow || 'visible') === mode ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#8A9ABB] hover:border-[#2348D7]'}`}
+                    >{mode}</button>
                   ))}
                 </div>
               </div>
 
-              {/* Cursor */}
               <div>
                 <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Cursor</p>
                 <select
@@ -717,13 +630,10 @@ export default function RightPanel({
                   onChange={(e) => onUpdate(selected.id, { cursor: e.target.value })}
                   className="w-full bg-[#F3F6FB] border border-[#E2E8F4] rounded-lg px-3 py-2 text-xs text-[#0F2348] outline-none focus:border-[#2348D7]"
                 >
-                  {['default', 'pointer', 'text', 'grab', 'not-allowed'].map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
+                  {['default', 'pointer', 'text', 'grab', 'not-allowed'].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 
-              {/* Border */}
               {showBorder ? (
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -739,10 +649,11 @@ export default function RightPanel({
                   </div>
                 </div>
               ) : (
-                <button onClick={() => { setShowBorder(true); update('borderColor', '#e2e8f4'); update('borderWidth', 1) }} className="w-full py-2 rounded-lg border border-dashed border-[#D8E1F0] text-[#AAB8D4] hover:text-[#2348D7] hover:border-[#2348D7] text-xs font-medium transition-colors">+ Add Border</button>
+                <button onClick={() => { setShowBorder(true); update('borderColor', '#e2e8f4'); update('borderWidth', 1) }}
+                  className="w-full py-2 rounded-lg border border-dashed border-[#D8E1F0] text-[#AAB8D4] hover:text-[#2348D7] hover:border-[#2348D7] text-xs font-medium transition-colors"
+                >+ Add Border</button>
               )}
 
-              {/* Shadow */}
               {showShadow ? (
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -752,14 +663,16 @@ export default function RightPanel({
                   <ColorRow label="Color" color={selected.shadowColor || '#00000033'} onChange={val => update('shadowColor', val)} />
                 </div>
               ) : (
-                <button onClick={() => { setShowShadow(true); update('shadowColor', '#00000033') }} className="w-full py-2 rounded-lg border border-dashed border-[#D8E1F0] text-[#AAB8D4] hover:text-[#2348D7] hover:border-[#2348D7] text-xs font-medium transition-colors">+ Add Shadow</button>
+                <button onClick={() => { setShowShadow(true); update('shadowColor', '#00000033') }}
+                  className="w-full py-2 rounded-lg border border-dashed border-[#D8E1F0] text-[#AAB8D4] hover:text-[#2348D7] hover:border-[#2348D7] text-xs font-medium transition-colors"
+                >+ Add Shadow</button>
               )}
 
               <NumberInput label="Opacity" value={selected.opacity ?? 100} suffix="%" onChange={val => update('opacity', Math.min(100, Math.max(0, val)))} />
             </div>
           </Section>
 
-          {/* ── TYPOGRAPHY ── */}
+          {/* Typography */}
           {isText && (
             <Section title="Typography" defaultOpen={true}>
               <div className="space-y-3">
@@ -768,24 +681,23 @@ export default function RightPanel({
                   <NumberInput label="Line Height" value={selected.lineHeight || ''} suffix="px" onChange={val => update('lineHeight', val)} />
                 </div>
 
-{/* Breakpoint font sizes — actual stored values */}
-<div className="p-2.5 bg-[#F7F9FD] rounded-lg border border-[#EEF2FA]">
-  <p className="text-[#5E6F8E] text-[9px] font-semibold mb-2">Font size per breakpoint</p>
-  <div className="space-y-1.5">
-    {['desktop', 'tablet', 'phone'].map(bp => {
-      const bpProps = selected[bp]
-      const size = bpProps?.fontSize ?? selected.fontSize ?? 16
-      const isActive = activeBreakpoint === bp
-      return (
-        <div key={bp} className={`flex items-center justify-between text-[10px] px-2 py-1 rounded ${isActive ? 'bg-[#EEF3FF]' : ''}`}>
-          <span className={isActive ? 'text-[#2348D7] font-semibold' : 'text-[#AAB8D4] capitalize'}>{bp}</span>
-          <span className={`font-mono ${isActive ? 'text-[#2348D7] font-bold' : 'text-[#5E6F8E]'}`}>{size}px</span>
-        </div>
-      )
-    })}
-  </div>
-  <p className="text-[#AAB8D4] text-[8px] mt-2">Edit each breakpoint independently</p>
-</div>
+                {/* Font size per breakpoint */}
+                <div className="p-2.5 bg-[#F7F9FD] rounded-lg border border-[#EEF2FA]">
+                  <p className="text-[#5E6F8E] text-[9px] font-semibold mb-2">Font size per breakpoint</p>
+                  <div className="space-y-1.5">
+                    {['desktop', 'tablet', 'phone'].map(bp => {
+                      const size = selected[bp]?.fontSize ?? selected.fontSize ?? 16
+                      const isActive = activeBreakpoint === bp
+                      return (
+                        <div key={bp} className={`flex items-center justify-between text-[10px] px-2 py-1 rounded ${isActive ? 'bg-[#EEF3FF]' : ''}`}>
+                          <span className={isActive ? 'text-[#2348D7] font-semibold capitalize' : 'text-[#AAB8D4] capitalize'}>{bp}</span>
+                          <span className={`font-mono ${isActive ? 'text-[#2348D7] font-bold' : 'text-[#5E6F8E]'}`}>{size}px</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <p className="text-[#AAB8D4] text-[8px] mt-2">Edit each breakpoint independently</p>
+                </div>
 
                 <div>
                   <p className="text-[#AAB8D4] text-[9px] font-medium mb-1.5">Font Family</p>
@@ -804,7 +716,9 @@ export default function RightPanel({
                   <p className="text-[#AAB8D4] text-[9px] font-medium mb-1.5">Weight</p>
                   <div className="grid grid-cols-3 gap-2">
                     {[{ label: '400', val: 400 }, { label: '500', val: 500 }, { label: '700', val: 700 }].map(w => (
-                      <button key={w.val} onClick={() => update('fontWeight', w.val)} className={`py-2 rounded-lg text-[11px] border font-semibold transition-colors ${(selected.fontWeight || 400) === w.val ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'}`}>{w.label}</button>
+                      <button key={w.val} onClick={() => update('fontWeight', w.val)}
+                        className={`py-2 rounded-lg text-[11px] border font-semibold transition-colors ${(selected.fontWeight || 400) === w.val ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'}`}
+                      >{w.label}</button>
                     ))}
                   </div>
                 </div>
@@ -817,11 +731,15 @@ export default function RightPanel({
                       { ch: 'I', title: 'Italic',    active: !!selected.italic,    click: () => update('italic',    !selected.italic)    },
                       { ch: 'U', title: 'Underline', active: !!selected.underline, click: () => update('underline', !selected.underline) },
                     ].map(b => (
-                      <button key={b.ch} onClick={b.click} title={b.title} className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs font-bold transition-colors ${b.active ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'}`}>{b.ch}</button>
+                      <button key={b.ch} onClick={b.click} title={b.title}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs font-bold transition-colors ${b.active ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'}`}
+                      >{b.ch}</button>
                     ))}
                     <div className="w-px h-6 bg-[#E2E8F4] mx-1" />
                     {[{ a: 'left', i: '◀' }, { a: 'center', i: '●' }, { a: 'right', i: '▶' }].map(({ a, i }) => (
-                      <button key={a} onClick={() => update('textAlign', a)} title={`Align ${a}`} className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs transition-colors ${(selected.textAlign || 'left') === a ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'}`}>{i}</button>
+                      <button key={a} onClick={() => update('textAlign', a)} title={`Align ${a}`}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center border text-xs transition-colors ${(selected.textAlign || 'left') === a ? 'bg-[#EEF3FF] border-[#2348D7] text-[#2348D7]' : 'border-[#E2E8F4] text-[#5E6F8E] hover:border-[#2348D7]'}`}
+                      >{i}</button>
                     ))}
                   </div>
                 </div>
@@ -831,31 +749,30 @@ export default function RightPanel({
             </Section>
           )}
 
-          {/* ── ACTIONS ── */}
+          {/* Actions */}
           <Section title="Actions" defaultOpen={false}>
             <div className="space-y-2">
-              <div>
-                <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Arrange</p>
-                <div className="grid grid-cols-4 gap-1">
-                  {[
-                    { fn: 'back-all', icon: SendToBack,   label: 'Back All' },
-                    { fn: 'back',     icon: ArrowDown,    label: 'Back'     },
-                    { fn: 'forward',  icon: ArrowUp,      label: 'Forward'  },
-                    { fn: 'front',    icon: BringToFront, label: 'Front'    },
-                  ].map(({ fn, icon: Icon, label }) => (
-                    <button key={fn} onClick={() => onReorder(selected.id, fn)} title={label} className="flex flex-col items-center gap-1 py-2 rounded-lg border border-[#E2E8F4] hover:border-[#2348D7] hover:bg-[#EEF3FF] text-[#5E6F8E] hover:text-[#2348D7] transition-all">
-                      <Icon size={13} />
-                      <span className="text-[8px] font-medium">{label}</span>
-                    </button>
-                  ))}
-                </div>
+              <p className="text-[#AAB8D4] text-[8px] font-semibold uppercase tracking-wider mb-2">Arrange</p>
+              <div className="grid grid-cols-4 gap-1">
+                {[
+                  { fn: 'back-all', icon: SendToBack,   label: 'Back All' },
+                  { fn: 'back',     icon: ArrowDown,    label: 'Back'     },
+                  { fn: 'forward',  icon: ArrowUp,      label: 'Forward'  },
+                  { fn: 'front',    icon: BringToFront, label: 'Front'    },
+                ].map(({ fn, icon: Icon, label }) => (
+                  <button key={fn} onClick={() => onReorder(selected.id, fn)} title={label}
+                    className="flex flex-col items-center gap-1 py-2 rounded-lg border border-[#E2E8F4] hover:border-[#2348D7] hover:bg-[#EEF3FF] text-[#5E6F8E] hover:text-[#2348D7] transition-all"
+                  >
+                    <Icon size={13} />
+                    <span className="text-[8px] font-medium">{label}</span>
+                  </button>
+                ))}
               </div>
             </div>
           </Section>
         </>
       ) : (
         <>
-          {/* ── Canvas properties (no element selected) ── */}
           <div className="px-4 py-3 border-b border-[#EEF2FA] shrink-0 bg-gradient-to-b from-[#F8FAFF] to-white">
             <p className="text-[#AAB8D4] text-[9px] font-semibold uppercase tracking-widest">CANVAS</p>
             <p className="text-[#0F2348] text-sm font-bold mt-1">Properties</p>

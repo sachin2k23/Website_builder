@@ -22,6 +22,8 @@ import {
   DEFAULT_MIN_HEIGHT
 } from './box-model/boxModelUtils'
 import { calculateStableResize } from './box-model/boxModelConstraints'
+import { getElementProperties } from '../../utils/responsive' 
+import { setBreakpointProps } from '../../utils/responsive' 
 
 const HANDLES = [
   { id: 'nw', cursor: 'nw-resize', style: { top: -5,                left: -5                } },
@@ -46,6 +48,15 @@ const ICON_COMPONENTS = {
   nonicons: Feather,
   sargam:   CheckCircle2,
 }
+
+const GLOBAL_KEYS = new Set([
+  'id', 'type', 'name', 'label', 'content', 'src', 'alt', 'href',
+  'objectFit', 'iconSet', 'linkType', 'linkHref', 'linkPage',
+  'linkAnchor', 'linkTarget', 'linkPageAnchor',
+  'baselineWidth', 'baselineHeight', 'baselineFontSize',
+  'baselinePaddingH', 'baselinePaddingV', 'baselineBorderRadius',
+  'children',
+])
 
 // ─── Types that support inline text editing ────────────────────────────────────
 const EDITABLE_TYPES = new Set([
@@ -265,7 +276,7 @@ export default function CanvasElement({
       baselinePaddingV:     element.paddingTop    ?? element.paddingBottom ?? typeDefaults.paddingV,
       baselineBorderRadius: element.borderRadius  ?? element.radius        ?? 0,
     }
-    onUpdate(element.id, seeded, { silent: true })
+    onUpdate(element.id, seeded, { silent: true, global: true })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [element.id])
 
@@ -287,38 +298,10 @@ export default function CanvasElement({
   const scaledIconSize     = Math.max(8,  Math.round(Math.min(w, h) * 0.6))
 
   // ── Local update helper ───────────────────────────────────────────────────────
-  const handleUpdate = useCallback((id, changes, options = {}) => {
-    const layoutKeys = new Set(['x', 'y', 'width', 'height'])
-    const layoutChanges = {}
-    const styleChanges  = {}
-    Object.entries(changes).forEach(([k, v]) => {
-      if (layoutKeys.has(k)) layoutChanges[k] = v
-      else                   styleChanges[k]  = v
-    })
+const handleUpdate = useCallback((id, changes, options = {}) => {
+  onUpdate(id, changes, options)
+}, [onUpdate])
 
-    let updated = Object.keys(styleChanges).length
-      ? { ...element, ...styleChanges }
-      : { ...element }
-
-    if (Object.keys(layoutChanges).length) {
-      updated = setElementLayout(updated, activeBreakpoint, layoutChanges)
-    }
-
-    if (!updated.baselineWidth || !updated.baselineHeight) {
-      const currentLayout = getElementLayout(updated, activeBreakpoint)
-      updated = {
-        ...updated,
-        baselineWidth:        currentLayout.width,
-        baselineHeight:       currentLayout.height,
-        baselineFontSize:     updated.fontSize  ?? typeDefaults.fontSize,
-        baselinePaddingH:     updated.paddingLeft  ?? updated.paddingRight  ?? typeDefaults.paddingH,
-        baselinePaddingV:     updated.paddingTop   ?? updated.paddingBottom ?? typeDefaults.paddingV,
-        baselineBorderRadius: updated.borderRadius ?? updated.radius ?? 0,
-      }
-    }
-
-    onUpdate(id, updated, options)
-  }, [element, activeBreakpoint, onUpdate, typeDefaults])
 
   // ── Enter edit mode ──────────────────────────────────────────────────────────
   const enterEditMode = useCallback((e) => {
@@ -328,16 +311,15 @@ export default function CanvasElement({
   }, [isSelected, onSelect, element.id])
 
   // ── Commit edit (contentEditable) ────────────────────────────────────────────
-  const commitEdit = useCallback((e) => {
-    handleUpdate(element.id, { content: e.target.innerText })
-    setIsEditing(false)
-  }, [element.id, handleUpdate])
+const commitEdit = useCallback((e) => {
+  onUpdate(element.id, { content: e.target.innerText }, { global: true })
+  setIsEditing(false)
+}, [element.id, onUpdate])
 
-  // ── Commit edit (native input / textarea) ────────────────────────────────────
-  const commitNativeEdit = useCallback((value) => {
-    handleUpdate(element.id, { content: value })
-    setIsEditing(false)
-  }, [element.id, handleUpdate])
+const commitNativeEdit = useCallback((value) => {
+  onUpdate(element.id, { content: value }, { global: true })
+  setIsEditing(false)
+}, [element.id, onUpdate])
 
   // ── Exit on Escape, commit on Enter (for single-line) ────────────────────────
   const handleEditKeyDown = useCallback((e) => {
@@ -355,12 +337,6 @@ export default function CanvasElement({
   }, [element.type])
 
   // ── Drag ─────────────────────────────────────────────────────────────────────
-  // FIX: The original onUp closed over the stale x/y values captured at drag
-  // start, so committing in onUp always reset the element to its origin.
-  // The fix tracks the last computed position in a plain object (lastPos) that
-  // both onMove and onUp share via closure. onMove mutates it on every tick;
-  // onUp reads from it when committing — identical to the lastBox pattern used
-  // correctly in handleResizeMouseDown below.
   const handleMouseDown = useCallback((e) => {
     if (isEditing) return
     e.stopPropagation()
@@ -375,7 +351,7 @@ export default function CanvasElement({
         }))
       : []
 
-    // ✅ Track the last committed position so onUp can commit the correct final coords
+    // Track the last committed position so onUp can commit the correct final coords
     const lastPos = { x, y }
 
     const onMove = (e) => {
@@ -395,7 +371,6 @@ export default function CanvasElement({
       const clampedBox = clampBoxToCanvas({ ...nextBox, x: snap.x, y: snap.y }, canvasWidth, canvasHeight)
       onInteractionGuides?.(snap.guides)
 
-      // ✅ Keep lastPos in sync so onUp can commit the true final position
       lastPos.x = clampedBox.x
       lastPos.y = clampedBox.y
 
@@ -415,7 +390,7 @@ export default function CanvasElement({
       dragging.current = false
       dragChildren.current = []
       onInteractionGuides?.({ vertical: [], horizontal: [] })
-      // ✅ Commit lastPos (the actual final position), not stale closure x/y
+      // Commit lastPos (the actual final position), not stale closure x/y
       handleUpdate(element.id, { x: lastPos.x, y: lastPos.y }, { commit: true })
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
@@ -506,23 +481,19 @@ export default function CanvasElement({
   }, [element.id, x, y, w, h, zoom, canvasWidth, canvasHeight, handleUpdate, onInteractionGuides])
 
   /* ── Visual styles (not layout) ── */
-  const fill    = element.fill        || 'transparent'
-  const radius  = cssLength(scaledBorderRadius || (element.borderRadius ?? element.radius ?? 0))
-  const border  = element.borderColor ? `1.5px solid ${element.borderColor}` : undefined
-  const shadow  = element.shadowColor ? `0 4px 24px ${element.shadowColor}` : undefined
-  const opacity = (element.opacity    ?? 100) / 100
+  const bpProps = getElementProperties(element, activeBreakpoint)
+
+  const fill    = bpProps.fill        || 'transparent'
+  const radius  = cssLength(scaledBorderRadius || (bpProps.borderRadius ?? bpProps.radius ?? 0))
+  const border  = bpProps.borderColor ? `1.5px solid ${bpProps.borderColor}` : undefined
+  const shadow  = bpProps.shadowColor ? `0 4px 24px ${bpProps.shadowColor}` : undefined
+  const opacity = (bpProps.opacity    ?? 100) / 100
   const isFrameLike = isContainerElement(element)
 
   const resolvedFontSize = useMemo(() => {
-    if (activeBreakpoint !== 'desktop') {
-      return getResponsiveFontSize(element, activeBreakpoint, typeDefaults.fontSize)
-    }
-    if (element.fontSize != null) {
-      return Math.max(6, Math.round(element.fontSize * scaleU * 10) / 10)
-    }
-    const base = getResponsiveFontSize(element, activeBreakpoint, typeDefaults.fontSize)
-    return Math.max(6, Math.round(base * scaleU * 10) / 10)
-  }, [element, activeBreakpoint, scaleU, typeDefaults.fontSize])
+    const bpFontSize = bpProps.fontSize ?? typeDefaults.fontSize
+    return Math.max(6, Math.round(bpFontSize * scaleU * 10) / 10)
+  }, [bpProps.fontSize, scaleU, typeDefaults.fontSize])
 
   // ── Shared props for contentEditable text elements ───────────────────────────
   const sharedTextProps = (defaultColor, defaultWeight, defaultLine) => ({
@@ -532,19 +503,20 @@ export default function CanvasElement({
     onBlur: commitEdit,
     onKeyDown: handleEditKeyDown,
     style: {
-      color:       element.textColor || defaultColor,
-      fontSize:    `${resolvedFontSize}px`,
-      fontWeight:  getResponsiveValue(element, activeBreakpoint, 'fontWeight', defaultWeight),
-      fontFamily:  element.fontFamily || 'inherit',
-      textAlign:   getResponsiveValue(element, activeBreakpoint, 'textAlign', element.textAlign || 'left'),
-      lineHeight:  getResponsiveValue(element, activeBreakpoint, 'lineHeight', element.lineHeight || defaultLine),
-      outline:     'none',
-      cursor:      isEditing ? 'text' : 'move',
-      width:       '100%',
-      whiteSpace:  'pre-wrap',
-      wordBreak:   'break-word',
-      overflowWrap:'anywhere',
-      boxSizing:   'border-box',
+      color:         bpProps.textColor    || defaultColor,
+      fontWeight:    bpProps.fontWeight   || defaultWeight,
+      fontFamily:    bpProps.fontFamily   || element.fontFamily || 'inherit',
+      textAlign:     bpProps.textAlign    || 'left',
+      lineHeight:    bpProps.lineHeight   || defaultLine,
+      letterSpacing: bpProps.letterSpacing != null ? `${bpProps.letterSpacing}px` : undefined,
+      fontSize:      `${resolvedFontSize}px`,
+      outline:       'none',
+      cursor:        isEditing ? 'text' : 'move',
+      width:         '100%',
+      whiteSpace:    'pre-wrap',
+      wordBreak:     'break-word',
+      overflowWrap:  'anywhere',
+      boxSizing:     'border-box',
     },
   })
 
@@ -928,10 +900,10 @@ export default function CanvasElement({
         const Icon = ICON_COMPONENTS[element.iconSet] || Star
         return (
           <div style={{
-            width:   `${w}px`,
-            height:  `${h}px`,
-            color:   element.textColor || '#2348D7',
-            display: 'flex',
+            width:          `${w}px`,
+            height:         `${h}px`,
+            color:          element.textColor || '#2348D7',
+            display:        'flex',
             alignItems:     'center',
             justifyContent: 'center',
           }}>
@@ -1002,22 +974,22 @@ export default function CanvasElement({
         userSelect:    isEditing ? 'text' : 'none',
         borderRadius:  radius,
         zIndex:        isEditing ? 20 : (isFrameLike ? 0 : (isSelected ? 10 : 1)),
-        display:       element.display || 'block',
-        flexDirection: element.display === 'flex' ? (element.flexDirection || 'row') : undefined,
-        alignItems:    element.display === 'flex' ? (element.alignItems || 'center') : undefined,
-        justifyContent:element.display === 'flex' ? (element.justifyContent || 'flex-start') : undefined,
-        gap:           element.gap ? `${element.gap}px` : undefined,
-        gridTemplateColumns: element.display === 'grid' ? `repeat(${element.gridCols || 2}, 1fr)` : undefined,
-        padding: [element.paddingTop, element.paddingRight, element.paddingBottom, element.paddingLeft]
+        display:       bpProps.display || 'block',
+        flexDirection: bpProps.display === 'flex' ? (bpProps.flexDirection || 'row') : undefined,
+        alignItems:    bpProps.display === 'flex' ? (bpProps.alignItems || 'center') : undefined,
+        justifyContent:bpProps.display === 'flex' ? (bpProps.justifyContent || 'flex-start') : undefined,
+        gap:           bpProps.gap ? `${bpProps.gap}px` : undefined,
+        gridTemplateColumns: bpProps.display === 'grid' ? `repeat(${bpProps.gridCols || 2}, 1fr)` : undefined,
+        padding: [bpProps.paddingTop, bpProps.paddingRight, bpProps.paddingBottom, bpProps.paddingLeft]
           .some(v => v !== undefined && v !== 0)
-          ? `${element.paddingTop||0}px ${element.paddingRight||0}px ${element.paddingBottom||0}px ${element.paddingLeft||0}px`
+          ? `${bpProps.paddingTop||0}px ${bpProps.paddingRight||0}px ${bpProps.paddingBottom||0}px ${bpProps.paddingLeft||0}px`
           : undefined,
-        margin: [element.marginTop, element.marginRight, element.marginBottom, element.marginLeft]
+        margin: [bpProps.marginTop, bpProps.marginRight, bpProps.marginBottom, bpProps.marginLeft]
           .some(v => v !== undefined && v !== 0)
-          ? `${element.marginTop||0}px ${element.marginRight||0}px ${element.marginBottom||0}px ${element.marginLeft||0}px`
+          ? `${bpProps.marginTop||0}px ${bpProps.marginRight||0}px ${bpProps.marginBottom||0}px ${bpProps.marginLeft||0}px`
           : undefined,
-        overflow: element.overflow || 'visible',
-        cursor:   isEditing ? 'text' : (element.cursor || 'move'),
+        overflow: bpProps.overflow || 'visible',
+        cursor:   isEditing ? 'text' : (bpProps.cursor || element.cursor || 'move'),
       }}
     >
       {/* Hover label */}

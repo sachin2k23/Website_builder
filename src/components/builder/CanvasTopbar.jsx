@@ -1,14 +1,18 @@
-import { Database, Plus, Settings, Play, Users, Sparkles, RotateCcw, RotateCw, Download, Sun, Moon } from 'lucide-react'
-import { useState } from 'react'
+import { Plus, Settings, Play, Sparkles, RotateCcw, RotateCw, Download, Sun, Moon } from 'lucide-react'
 
-export default function CanvasTopbar({ onBack, onInsertClick, onUndo, onRedo, canUndo, canRedo, onPreview, onExport, onTemplateThemeToggle, projectName = 'My Project' }) {
-  const [theme, setTheme] = useState('light')
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light'
-    setTheme(newTheme)
-    onTemplateThemeToggle?.(newTheme)
-  }
+export default function CanvasTopbar({
+  onBack,
+  onInsertClick,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+  onPreview,
+  onExport,
+  onTemplateThemeToggle,
+  projectName = 'My Project',
+  templateTheme = 'light',   // ← controlled by Builder, no local state
+}) {
   return (
     <div className="h-14 bg-white border-b border-[#D8E1F0] flex items-center justify-between gap-2 px-2 sm:px-4 shrink-0">
       <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
@@ -19,7 +23,6 @@ export default function CanvasTopbar({ onBack, onInsertClick, onUndo, onRedo, ca
           <Sparkles size={16} />
         </button>
 
-        {/* Insert — has its own click handler */}
         <button
           onClick={onInsertClick}
           className="flex items-center gap-1.5 px-3 py-2 text-sm text-[#5E6F8E] hover:text-[#2348D7] hover:bg-[#F3F7FF] rounded-xl transition-colors whitespace-nowrap"
@@ -28,7 +31,6 @@ export default function CanvasTopbar({ onBack, onInsertClick, onUndo, onRedo, ca
           Insert
         </button>
 
-        {/* Undo/Redo buttons */}
         <button
           onClick={onUndo}
           disabled={!canUndo}
@@ -64,13 +66,16 @@ export default function CanvasTopbar({ onBack, onInsertClick, onUndo, onRedo, ca
 
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         <div className="w-8 h-8 rounded-full bg-[#2F6BFF] flex items-center justify-center text-white text-xs font-bold">S</div>
+
+        {/* Theme toggle — reads templateTheme prop, calls Builder's handler directly */}
         <button
-          onClick={toggleTheme}
+          onClick={onTemplateThemeToggle}
           className="hidden w-9 h-9 rounded-xl hover:bg-[#F3F7FF] sm:flex items-center justify-center text-[#7D8CA8] hover:text-[#2348D7] transition-colors"
-          title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          title={`Switch to ${templateTheme === 'light' ? 'dark' : 'light'} mode`}
         >
-          {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
+          {templateTheme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
         </button>
+
         <button className="hidden w-9 h-9 rounded-xl hover:bg-[#F3F7FF] sm:flex items-center justify-center text-[#7D8CA8] hover:text-[#2348D7] transition-colors">
           <Settings size={15} />
         </button>

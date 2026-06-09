@@ -15,12 +15,12 @@ import {
   generateResponsiveDefaults,
   getElementLayout,
   getElementProperties,
-  setElementLayout,
+  setBreakpointProps,
 } from '../utils/responsive'
 import { getContentHeight } from '../utils/editorGeometry'
 import {
   applyThemeToTemplate,
-  applyBoldSummitTheme,
+  applyBoldSummitTheme,      // can keep or remove — no longer used directly
   getCanvasFillByTemplate,
   isTechSummitTemplate,
   isBoldSummitTemplate,
@@ -31,6 +31,7 @@ import {
   isFlatDesignTemplate,
   isBotanicalOrganicTemplate,
   isPlayfulGeometricTemplate,
+  isAnyTemplate,             // ← ADD THIS
 } from '../utils/templates'
 
 const DEFAULT_SIZES = {
@@ -68,6 +69,7 @@ export default function Builder({
   const [showDeletePageDialog, setShowDeletePageDialog] = useState(false)
   const [pageToDelete, setPageToDelete]               = useState(null)
 
+  const [templateTheme, setTemplateTheme] = useState('light')
   // ── Pages ──────────────────────────────────────────────────────────────────
   const [pages, setPages]               = useState([{ id: 'home', name: 'Home' }])
   const [activePageId, setActivePageId] = useState('home')
@@ -141,19 +143,31 @@ export default function Builder({
       children: [],
     }))
 
-    // Only run applySmartResponsive on elements NOT already in new format
     const normalized = prepared.map(el => {
       if (el.desktop && typeof el.desktop === 'object') return el
       return applySmartResponsive([el], desktopCanvasWidth)[0]
     })
 
-    const mapped = isBoldSummitTemplate(normalized)
-      ? applyBoldSummitTheme(normalized, 'light')
+    // Apply the correct default theme for every template type on load.
+    // Each template's defaultTheme is respected: dark templates start dark,
+    // light templates start light. applyThemeToTemplate dispatches correctly.
+    const templateDefaultTheme = (() => {
+      if (isTechSummitTemplate(normalized))    return 'dark'
+      if (isVaporWaveFestTemplate(normalized)) return 'dark'
+      // all other templates default to light
+      return 'light'
+    })()
+    
+    setTemplateTheme(templateDefaultTheme) 
+ 
+    const mapped = isAnyTemplate(normalized)
+      ? applyThemeToTemplate(normalized, templateDefaultTheme)
       : normalized
 
     setCanvasSettings(prev => ({
       ...prev,
       ...(initialCanvasSettings || {}),
+      fill: initialCanvasSettings?.fill ?? getCanvasFillByTemplate(mapped, templateDefaultTheme),
       height: initialCanvasSettings?.height || getContentHeight(mapped, 'desktop', 900),
     }))
     setTreeByPage(prev => ({ ...prev, [activePageId]: mapped }))
@@ -172,20 +186,13 @@ export default function Builder({
   }, [elements, canvasSettings, projectName, onProjectChange])
 
   // ── Breakpoint switch ──────────────────────────────────────────────────────
-  const handleBreakpointChange = useCallback((bp) => {
-    setActiveBreakpoint(bp)
-    setSelectedId(null)
-    if (bp !== 'desktop') {
-      const desktopCanvasWidth = canvasSettings?.width || 1200
-      setTree(prev => {
-        if (bp === 'phone') return applySmartResponsive(prev, desktopCanvasWidth)
-        return prev.map(el => {
-          if (el[bp]) return el
-          return generateResponsiveDefaults(el, desktopCanvasWidth)
-        })
-      })
-    }
-  }, [canvasSettings, setTree])
+const handleBreakpointChange = useCallback((bp) => {
+  setActiveBreakpoint(bp)
+  setSelectedId(null)
+  // Never re-run applySmartResponsive or generateResponsiveDefaults on switch.
+  // Elements already have all breakpoint buckets from when they were created.
+  // Re-running here overwrites any edits the user made in that breakpoint.
+}, [])
 
   // ── Shared: commit new node(s) to tree + history ───────────────────────────
   const commitNodes = useCallback((newNodes) => {
@@ -310,22 +317,21 @@ export default function Builder({
   }, [activePageId, pushSnapshot])
 
   // ── Update ─────────────────────────────────────────────────────────────────
-  const handleUpdate = useCallback((id, changesOrFullElement, options = {}) => {
-    const isFullElement =
-      changesOrFullElement &&
-      typeof changesOrFullElement === 'object' &&
-      changesOrFullElement.id === id
+  const handleUpdate = useCallback((id, changes, options = {}) => {
 
     const applyUpdate = (currentTree) => {
-      if (isFullElement) {
-        return updateNode(currentTree, id, changesOrFullElement)
+      // Global: write to element root (content, baselines, src, name, etc.)
+      if (options.global) {
+        return currentTree.map(el => {
+          if (el.id !== id) return el
+          return { ...el, ...changes }
+        })
       }
 
+      // Default: write ONLY to the active breakpoint bucket
       return currentTree.map(el => {
         if (el.id !== id) return el
-        // Route ALL changes (layout AND style) into the active breakpoint bucket.
-        // This is what makes desktop/tablet/phone fully independent.
-        return setElementLayout(el, activeBreakpoint, changesOrFullElement)
+        return setBreakpointProps(el, activeBreakpoint, changes)
       })
     }
 
@@ -340,32 +346,25 @@ export default function Builder({
     setTree(prev => applyUpdate(prev))
   }, [setTree, setTreeByPage, activeBreakpoint, activePageId, pushSnapshot])
 
+  // ── Canvas update ──────────────────────────────────────────────────────────
   const handleCanvasUpdate = useCallback((changes) => {
     setCanvasSettings(prev => ({ ...prev, ...changes }))
   }, [])
 
-  const handleTemplateThemeToggle = useCallback((nextTheme) => {
-    const current = treeByPage[activePageId] || []
-    const supportsTheme =
-      isTechSummitTemplate(current) ||
-      isBoldSummitTemplate(current) ||
-      isArtDecoTemplate(current) ||
-      isNeuSummitTemplate(current) ||
-      isVaporWaveFestTemplate(current) ||
-      isMinimalistMonochromeTemplate(current) ||
-      isFlatDesignTemplate(current) ||
-      isBotanicalOrganicTemplate(current) ||
-      isPlayfulGeometricTemplate(current)
+  // ── Template theme toggle ──────────────────────────────────────────────────
+const handleTemplateThemeToggle = useCallback(() => {
+  const current    = treeByPage[activePageId] || []
+  if (!isAnyTemplate(current)) return
 
-    if (!supportsTheme) return
-
-    const nextFill = getCanvasFillByTemplate(current, nextTheme)
-    if (nextFill) setCanvasSettings(prev => ({ ...prev, fill: nextFill }))
-    setTreeByPage(prev => {
-      const currentTree = prev[activePageId] || []
-      return pushSnapshot(applyThemeToTemplate(currentTree, nextTheme), prev)
-    })
-  }, [activePageId, pushSnapshot, treeByPage])
+  const nextTheme = templateTheme === 'light' ? 'dark' : 'light'
+  const nextFill  = getCanvasFillByTemplate(current, nextTheme)
+  if (nextFill) setCanvasSettings(prev => ({ ...prev, fill: nextFill }))
+  setTemplateTheme(nextTheme)
+  setTreeByPage(prev => {
+    const currentTree = prev[activePageId] || []
+    return pushSnapshot(applyThemeToTemplate(currentTree, nextTheme), prev)
+  })
+}, [activePageId, pushSnapshot, treeByPage, templateTheme])
 
   // ── Undo / Redo ────────────────────────────────────────────────────────────
   const undo = useCallback(() => {
@@ -521,18 +520,19 @@ export default function Builder({
       ) : (
         <>
           <CanvasTopbar
-            onBack={onBack}
-            projectName={projectName}
-            onInsertClick={() => setShowInsert(v => !v)}
-            onUndo={undo}
-            onRedo={redo}
-            canUndo={historyIndex.current > 0}
-            canRedo={historyIndex.current < historyRef.current.length - 1}
-            historyTick={historyTick}
-            onPreview={() => setIsPreview(true)}
-            onExport={async () => await exportToZip(elements, canvasSettings, projectName)}
-            onTemplateThemeToggle={handleTemplateThemeToggle}
-          />
+              onBack={onBack}
+              projectName={projectName}
+              onInsertClick={() => setShowInsert(v => !v)}
+              onUndo={undo}
+              onRedo={redo}
+              canUndo={historyIndex.current > 0}
+              canRedo={historyIndex.current < historyRef.current.length - 1}
+              historyTick={historyTick}
+              onPreview={() => setIsPreview(true)}
+              onExport={async () => await exportToZip(elements, canvasSettings, projectName)}
+              templateTheme={templateTheme}                      
+              onTemplateThemeToggle={handleTemplateThemeToggle}    
+            />
 
           <div className="flex flex-1 overflow-hidden relative">
 
@@ -617,11 +617,12 @@ export default function Builder({
           onClose={() => { setShowRenamePageModal(false); setPageToRename(null) }}
         />
       )}
+      
 
       {showDeletePageDialog && (
         <ConfirmDialog
           title="Delete Page?"
-          message={`Are you sure you want to delete this page? This cannot be undone.`}
+          message="Are you sure you want to delete this page? This cannot be undone."
           onConfirm={() => { handleDeletePageConfirm(); setShowDeletePageDialog(false) }}
           onClose={() => { setShowDeletePageDialog(false); setPageToDelete(null) }}
         />

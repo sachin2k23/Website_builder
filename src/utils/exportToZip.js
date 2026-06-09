@@ -1,10 +1,14 @@
 /**
- * exportToZip.js — Fixed version
+ * exportToZip.js — with Mobile Navigation
  *
- * Key fix: reads element properties from element.desktop / element.tablet / element.phone
- * (the responsive.js independent format) instead of root-level x/y/width/height.
- * Generates proper @media query CSS instead of broken absolute positioning.
+ * Changes from previous version:
+ *  1. Imports buildMobileNavHTML / buildMobileNavStyles / buildMobileNavScript
+ *     from mobileNavExport.js and injects them into the exported HTML/CSS.
+ *  2. Accepts two new optional params:  navLinks, projectTheme
+ *  3. Everything else unchanged.
  */
+
+import { buildMobileNavHTML, buildMobileNavStyles, buildMobileNavScript } from './mobileNavExport.js'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -24,18 +28,10 @@ function escapeAttr(str) {
 
 // ─── Read props from the correct breakpoint bucket ───────────────────────────
 
-/**
- * THE CORE FIX:
- * After responsive.js migration, element data lives in element.desktop,
- * element.tablet, element.phone — NOT on the root element anymore.
- * This function reads from the right place.
- */
 function getProps(el, breakpoint = 'desktop') {
-  // New independent format (post-migration)
   if (el.desktop !== undefined) {
     return el[breakpoint] || el.desktop
   }
-  // Legacy format (root-level props) — fallback for unmigrated elements
   return el
 }
 
@@ -52,18 +48,11 @@ function extractImageAsset(src, index) {
 
 // ─── Per-element HTML generation ─────────────────────────────────────────────
 
-/**
- * Generates HTML for one element using its DESKTOP props.
- * Responsive overrides are handled via CSS classes + @media queries.
- */
 function elementToHTML(el, index) {
   const p = getProps(el, 'desktop')
   const id = `el-${el.id || index}`
-  const h = p.height || 100
   const opacity = ((p.opacity ?? 100) / 100)
 
-  // Base inline style — only non-layout properties go inline
-  // Layout (position, size) goes into the stylesheet via classes
   const baseInline = [
     p.borderColor ? `border: 1.5px solid ${p.borderColor}` : '',
     p.shadowColor ? `box-shadow: 0 4px 24px ${p.shadowColor}` : '',
@@ -74,36 +63,27 @@ function elementToHTML(el, index) {
   switch (el.type) {
     case 'heading':
       return `<h2 class="${id}" style="${baseInline}" data-type="heading">${escapeHTML(p.content || el.content || 'Heading')}</h2>`
-
     case 'paragraph':
     case 'label':
       return `<p class="${id}" style="${baseInline}">${escapeHTML(p.content || el.content || '')}</p>`
-
     case 'link':
       return `<a href="${escapeAttr(el.href || '#')}" class="${id}" style="${baseInline}">${escapeHTML(p.content || el.content || 'Link')}</a>`
-
     case 'button':
       return `<button class="${id}" style="${baseInline}">${escapeHTML(p.content || el.content || 'Button')}</button>`
-
     case 'image':
       if (p.src || el.src) {
         return `<img src="${escapeAttr(p.src || el.src)}" alt="${escapeAttr(el.alt || '')}" class="${id}" style="${baseInline}" />`
       }
       return `<div class="${id} img-placeholder" style="${baseInline}">🖼</div>`
-
     case 'container':
     case 'section':
       return `<div class="${id}" style="${baseInline}"></div>`
-
     case 'divider':
       return `<hr class="${id}" style="${baseInline}" />`
-
     case 'input':
       return `<input type="text" placeholder="${escapeAttr(p.content || el.content || 'Enter text...')}" class="${id}" style="${baseInline}" />`
-
     case 'video':
       return `<div class="${id} video-placeholder" style="${baseInline}">▶</div>`
-
     default:
       return `<!-- unknown type: ${escapeHTML(el.type)} -->`
   }
@@ -111,21 +91,13 @@ function elementToHTML(el, index) {
 
 // ─── CSS generation per element ───────────────────────────────────────────────
 
-/**
- * Generates CSS class rules for all 3 breakpoints of one element.
- *
- * Structure:
- *   .el-{id} { ...desktop layout + typography }
- *   @media (max-width: 1024px) { .el-{id} { ...tablet overrides } }
- *   @media (max-width: 640px)  { .el-{id} { ...phone overrides } }
- */
 function elementToCSS(el, index) {
   const id = `el-${el.id || index}`
   const desktop = getProps(el, 'desktop')
   const tablet  = getProps(el, 'tablet')
   const phone   = getProps(el, 'phone')
 
-  function propsToCSS(p, isContainer) {
+  function propsToCSS(p) {
     const lines = []
     if (p.x       != null)  lines.push(`left: ${p.x}px`)
     if (p.y       != null)  lines.push(`top: ${p.y}px`)
@@ -151,7 +123,6 @@ function elementToCSS(el, index) {
   ${propsToCSS(desktop)}
 }`
 
-  // Only emit tablet/phone blocks if they differ from desktop
   const tabletCSS = tablet && tablet !== desktop ? `
 @media (max-width: 1024px) {
   .${id} {
@@ -171,7 +142,7 @@ function elementToCSS(el, index) {
 
 // ─── Stylesheet builder ───────────────────────────────────────────────────────
 
-function buildStylesheet(canvasSettings, elements) {
+function buildStylesheet(canvasSettings, elements, theme = 'light') {
   const globalCSS = `
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -219,7 +190,10 @@ img { max-width: 100%; display: block; }
     .map((el, i) => elementToCSS(el, i))
     .join('\n')
 
-  return globalCSS + '\n\n/* ── Elements ── */\n' + elementCSS
+  // ← NEW: mobile nav styles appended to the same stylesheet
+  const mobileNavCSS = buildMobileNavStyles(theme)
+
+  return globalCSS + '\n\n/* ── Elements ── */\n' + elementCSS + '\n\n' + mobileNavCSS
 }
 
 // ─── Google Fonts loader ──────────────────────────────────────────────────────
@@ -232,12 +206,10 @@ function buildGoogleFontsLink(elements) {
     if (el.fontFamily)      families.add(el.fontFamily)
   })
 
-  // Remove system fonts that don't need loading
   const systemFonts = new Set(['Inter', 'Arial', 'Helvetica', 'sans-serif', 'serif', 'monospace'])
   const googleFonts = [...families].filter(f => f && !systemFonts.has(f))
 
   if (!googleFonts.length) {
-    // Always load Inter as base
     return `<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />`
   }
 
@@ -248,6 +220,28 @@ function buildGoogleFontsLink(elements) {
   return `<link href="https://fonts.googleapis.com/css2?${query}&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />`
 }
 
+// ─── Derive nav links from elements ──────────────────────────────────────────
+//
+// If the caller doesn't supply explicit navLinks, we attempt to auto-detect
+// them by scanning for button/link elements that look like nav items
+// (short text, near the top of the canvas).
+
+function inferNavLinks(elements) {
+  const NAV_Y_THRESHOLD = 120 // only consider elements in the top 120px
+  const candidates = elements.filter(el => {
+    if (!['link', 'button', 'heading'].includes(el.type)) return false
+    const p = getProps(el, 'desktop')
+    return (p.y ?? 0) < NAV_Y_THRESHOLD
+  })
+
+  return candidates.map(el => {
+    const p = getProps(el, 'desktop')
+    const label = p.content || el.content || el.label || el.type
+    const href  = el.href || '#'
+    return { label: String(label).trim(), href: String(href).trim() }
+  }).filter(l => l.label.length > 0 && l.label.length < 40)
+}
+
 // ─── Main export function ─────────────────────────────────────────────────────
 
 export async function exportToZip(
@@ -255,6 +249,16 @@ export async function exportToZip(
   canvasSettings,
   projectName = 'my-project',
   customFonts = [],
+  {
+    /** Optional: nav links for the mobile hamburger menu */
+    navLinks    = null,
+    /** Optional: brand/logo text shown in the mobile header */
+    logoText    = projectName,
+    /** Optional: accent color for CTA buttons in the mobile nav */
+    accentColor = '#2563EB',
+    /** Optional: 'light' | 'dark' */
+    theme       = 'light',
+  } = {},
 ) {
   // Deep clone — never mutate editor state
   const clonedElements = JSON.parse(JSON.stringify(elements))
@@ -277,14 +281,21 @@ export async function exportToZip(
     return { ...el, src: `./images/${asset.filename}` }
   })
 
+  // ── Resolve nav links ─────────────────────────────────────────────────────
+  const resolvedNavLinks = navLinks ?? inferNavLinks(processedElements)
+
   // ── CSS ───────────────────────────────────────────────────────────────────
   const cssFolder  = zip.folder('css')
-  const stylesheet = buildStylesheet(clonedCanvas, processedElements)
+  const stylesheet = buildStylesheet(clonedCanvas, processedElements, theme)
   cssFolder.file('styles.css', stylesheet)
 
   // ── HTML ──────────────────────────────────────────────────────────────────
-  const bodyHTML     = processedElements.map((el, i) => `    ${elementToHTML(el, i)}`).join('\n')
-  const fontsLink    = buildGoogleFontsLink(processedElements)
+  const bodyHTML  = processedElements.map((el, i) => `    ${elementToHTML(el, i)}`).join('\n')
+  const fontsLink = buildGoogleFontsLink(processedElements)
+
+  // ← NEW: mobile nav markup
+  const mobileNavHTML   = buildMobileNavHTML(resolvedNavLinks, logoText, accentColor, theme)
+  const mobileNavScript = buildMobileNavScript()
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -296,9 +307,11 @@ export async function exportToZip(
   <link rel="stylesheet" href="./css/styles.css" />
 </head>
 <body>
+${mobileNavHTML}
   <div class="canvas">
 ${bodyHTML}
   </div>
+  <script>${mobileNavScript}<\/script>
 </body>
 </html>`
 
