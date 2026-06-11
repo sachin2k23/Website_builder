@@ -49,15 +49,18 @@ export default function MobileNav({
   logoText    = 'Brand',
   logoSrc     = null,
   accentColor = '#2348D7',
+  backgroundColor = null,
+  textColor = null,
+  ctaText = 'Get started',
   theme       = 'light',
 }) {
   const [open, setOpen]       = useState(false)
   const [closing, setClosing] = useState(false)
 
   const isDark  = theme === 'dark'
-  const bg      = isDark ? '#0F172A' : '#FFFFFF'
+  const bg      = backgroundColor || (isDark ? '#0F172A' : '#FFFFFF')
   const surface = isDark ? '#1E293B' : '#F8FAFC'
-  const text    = isDark ? '#F1F5F9' : '#0F172A'
+  const text    = textColor || (isDark ? '#F1F5F9' : '#0F172A')
   const sub     = isDark ? '#94A3B8' : '#64748B'
   const border  = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
   const overlay = isDark ? 'rgba(0,0,0,0.65)' : 'rgba(15,23,42,0.40)'
@@ -108,7 +111,7 @@ export default function MobileNav({
             flexShrink:     0,
           }}
         >
-          <HamburgerIcon open={open} color={text} />
+          <HamburgerIcon open={open} color={accentColor} />
         </button>
 
         {/* Logo — center */}
@@ -141,7 +144,7 @@ export default function MobileNav({
           flexShrink:     0,
           cursor:         'pointer',
         }}>
-          Get started
+          {ctaText}
         </div>
       </div>
 
@@ -283,7 +286,7 @@ export default function MobileNav({
                 boxShadow:     `0 2px 10px ${accentColor}44`,
                 letterSpacing: '0.01em',
               }}>
-                Get started
+                {ctaText}
               </div>
               <div style={{ marginTop: 10, fontSize: 11, color: sub, textAlign: 'center' }}>
                 Need help?{' '}

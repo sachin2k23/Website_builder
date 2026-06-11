@@ -1,15 +1,16 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import CanvasTopbar from '../components/builder/CanvasTopbar'
-import LeftPanel from '../components/builder/LeftPanel'
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Canvas from '../components/builder/Canvas'
-import RightPanel from '../components/builder/RightPanel'
-import InsertPanel from '../components/builder/InsertPanel'
-import PreviewMode from '../components/builder/PreviewMode'
-import ContextMenu from '../components/builder/ContextMenu'
-import PageRenameModal from '../components/builder/PageRenameModal'
+import CanvasTopbar from '../components/builder/CanvasTopbar'
 import ConfirmDialog from '../components/builder/ConfirmDialog'
+import ContextMenu from '../components/builder/ContextMenu'
+import InsertPanel from '../components/builder/InsertPanel'
+import LeftPanel from '../components/builder/LeftPanel'
+import PageRenameModal from '../components/builder/PageRenameModal'
+import PreviewMode from '../components/builder/PreviewMode'
+import RightPanel from '../components/builder/RightPanel'
+import { getContentHeight } from '../utils/editorGeometry'
 import { exportToZip } from '../utils/exportHTML'
-import { updateNode, deleteNode, findNode } from '../utils/treeHelpers'
 import {
   applySmartResponsive,
   generateResponsiveDefaults,
@@ -17,22 +18,14 @@ import {
   getElementProperties,
   setBreakpointProps,
 } from '../utils/responsive'
-import { getContentHeight } from '../utils/editorGeometry'
 import {
   applyThemeToTemplate,
-  applyBoldSummitTheme,      // can keep or remove — no longer used directly
   getCanvasFillByTemplate,
+  isAnyTemplate,
   isTechSummitTemplate,
-  isBoldSummitTemplate,
-  isArtDecoTemplate,
-  isNeuSummitTemplate,
   isVaporWaveFestTemplate,
-  isMinimalistMonochromeTemplate,
-  isFlatDesignTemplate,
-  isBotanicalOrganicTemplate,
-  isPlayfulGeometricTemplate,
-  isAnyTemplate,             // ← ADD THIS
 } from '../utils/templates'
+import { deleteNode, findNode, updateNode } from '../utils/treeHelpers'
 
 const DEFAULT_SIZES = {
   heading:   { width: 320, height: 50  },
@@ -52,16 +45,25 @@ const DEFAULT_SIZES = {
   icon:      { width: 48,  height: 48  },
   card:      { width: 300, height: 200 },
 }
-
 const clamp = (value, min, max) => Math.min(Math.max(value, min), Math.max(min, max))
 
 export default function Builder({
   onBack,
   initialElements = [],
   initialCanvasSettings = null,
+  initialBuilderState = null,
+  initialActiveBreakpoint = 'desktop',
+  initialCustomWidth = 800,
   projectName = 'My Project',
   onProjectChange,
+  onSave,
 }) {
+  const initialState = useMemo(() => initialBuilderState || null, [initialBuilderState])
+  const preparedInitialElements = useMemo(() => initialElements.map(el => ({
+    ...el,
+    name:     el.name || el.type,
+    children: el.children || [],
+  })), [initialElements])
 
   // ── Modal states ───────────────────────────────────────────────────────────
   const [showRenamePageModal, setShowRenamePageModal] = useState(false)
@@ -69,22 +71,19 @@ export default function Builder({
   const [showDeletePageDialog, setShowDeletePageDialog] = useState(false)
   const [pageToDelete, setPageToDelete]               = useState(null)
 
-  const [templateTheme, setTemplateTheme] = useState('light')
+  const [templateTheme, setTemplateTheme] = useState(initialState?.templateTheme || 'light')
   // ── Pages ──────────────────────────────────────────────────────────────────
-  const [pages, setPages]               = useState([{ id: 'home', name: 'Home' }])
-  const [activePageId, setActivePageId] = useState('home')
+  const [pages, setPages]               = useState(initialState?.pages || [{ id: 'home', name: 'Home' }])
+  const [activePageId, setActivePageId] = useState(initialState?.activePageId || 'home')
 
   // ── Breakpoint ─────────────────────────────────────────────────────────────
-  const [activeBreakpoint, setActiveBreakpoint] = useState('desktop')
-  const [customWidth, setCustomWidth]           = useState(800)
+  const [activeBreakpoint, setActiveBreakpoint] = useState(initialState?.activeBreakpoint || initialActiveBreakpoint)
+  const [customWidth, setCustomWidth]           = useState(initialState?.customWidth || initialCustomWidth)
+  const [saveState, setSaveState]               = useState('idle')
 
   // ── Elements (tree) ────────────────────────────────────────────────────────
-  const [treeByPage, setTreeByPage] = useState({
-    home: initialElements.map(el => ({
-      ...el,
-      name:     el.name || el.type,
-      children: [],
-    }))
+  const [treeByPage, setTreeByPage] = useState(initialState?.treeByPage || {
+    home: preparedInitialElements,
   })
 
   const tree     = useMemo(() => treeByPage[activePageId] || [], [treeByPage, activePageId])
@@ -113,10 +112,11 @@ export default function Builder({
     y:      0,
     fill:   '#ffffff',
     ...(initialCanvasSettings || {}),
+    ...(initialState?.canvasSettings || {}),
   })
 
   // ── History ────────────────────────────────────────────────────────────────
-  const historyRef   = useRef([{ home: [] }])
+  const historyRef   = useRef([initialState?.treeByPage || { home: preparedInitialElements }])
   const historyIndex = useRef(0)
   const [historyTick, setHistoryTick] = useState(0)
 
@@ -135,6 +135,8 @@ export default function Builder({
 
   // ── Sync initialElements when template changes ─────────────────────────────
   useEffect(() => {
+    if (initialState) return
+
     const desktopCanvasWidth = canvasSettings?.width || 1200
 
     const prepared = initialElements.map(el => ({
@@ -154,12 +156,11 @@ export default function Builder({
     const templateDefaultTheme = (() => {
       if (isTechSummitTemplate(normalized))    return 'dark'
       if (isVaporWaveFestTemplate(normalized)) return 'dark'
-      // all other templates default to light
       return 'light'
     })()
-    
-    setTemplateTheme(templateDefaultTheme) 
- 
+
+    setTemplateTheme(templateDefaultTheme)
+
     const mapped = isAnyTemplate(normalized)
       ? applyThemeToTemplate(normalized, templateDefaultTheme)
       : normalized
@@ -177,13 +178,28 @@ export default function Builder({
     setHistoryTick(tick => tick + 1)
   }, [initialElements, initialCanvasSettings]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    onProjectChange?.({
+  const builderSnapshot = useMemo(() => ({
       name: projectName,
       elements,
+      pages,
+      treeByPage,
+      activePageId,
       canvasSettings,
+      activeBreakpoint,
+      customWidth,
+      templateTheme,
+  }), [projectName, elements, pages, treeByPage, activePageId, canvasSettings, activeBreakpoint, customWidth, templateTheme])
+
+  useEffect(() => {
+    onProjectChange?.({
+      ...builderSnapshot,
+      builderState: builderSnapshot,
     })
-  }, [elements, canvasSettings, projectName, onProjectChange])
+  }, [builderSnapshot, onProjectChange])
+
+  useEffect(() => {
+    setSaveState('idle')
+  }, [elements, pages, treeByPage, activePageId, canvasSettings, activeBreakpoint, customWidth, templateTheme])
 
   // ── Breakpoint switch ──────────────────────────────────────────────────────
 const handleBreakpointChange = useCallback((bp) => {
@@ -352,19 +368,29 @@ const handleBreakpointChange = useCallback((bp) => {
   }, [])
 
   // ── Template theme toggle ──────────────────────────────────────────────────
-const handleTemplateThemeToggle = useCallback(() => {
-  const current    = treeByPage[activePageId] || []
-  if (!isAnyTemplate(current)) return
+  const handleTemplateThemeToggle = useCallback(() => {
+    setTemplateTheme(prevTheme => {
+      const nextTheme   = prevTheme === 'light' ? 'dark' : 'light'
+      const currentTree = treeByPage[activePageId] || []
+      if (!isAnyTemplate(currentTree)) return prevTheme
 
-  const nextTheme = templateTheme === 'light' ? 'dark' : 'light'
-  const nextFill  = getCanvasFillByTemplate(current, nextTheme)
-  if (nextFill) setCanvasSettings(prev => ({ ...prev, fill: nextFill }))
-  setTemplateTheme(nextTheme)
-  setTreeByPage(prev => {
-    const currentTree = prev[activePageId] || []
-    return pushSnapshot(applyThemeToTemplate(currentTree, nextTheme), prev)
-  })
-}, [activePageId, pushSnapshot, treeByPage, templateTheme])
+      const nextFill = getCanvasFillByTemplate(currentTree, nextTheme)
+      if (nextFill) setCanvasSettings(prev => ({ ...prev, fill: nextFill }))
+
+      setTreeByPage(prev => {
+        const tree   = prev[activePageId] || []
+        const themed = applyThemeToTemplate(tree, nextTheme)
+        return pushSnapshot(themed, prev)
+      })
+
+      return nextTheme
+    })
+  }, [activePageId, treeByPage, pushSnapshot])
+
+  const handleSaveProject = useCallback(() => {
+    onSave?.(builderSnapshot)
+    setSaveState('saved')
+  }, [onSave, builderSnapshot])
 
   // ── Undo / Redo ────────────────────────────────────────────────────────────
   const undo = useCallback(() => {
@@ -530,8 +556,10 @@ const handleTemplateThemeToggle = useCallback(() => {
               historyTick={historyTick}
               onPreview={() => setIsPreview(true)}
               onExport={async () => await exportToZip(elements, canvasSettings, projectName)}
-              templateTheme={templateTheme}                      
-              onTemplateThemeToggle={handleTemplateThemeToggle}    
+              onSave={handleSaveProject}
+              saveState={saveState}
+              templateTheme={templateTheme}
+              onTemplateThemeToggle={handleTemplateThemeToggle}
             />
 
           <div className="flex flex-1 overflow-hidden relative">
@@ -612,8 +640,9 @@ const handleTemplateThemeToggle = useCallback(() => {
 
       {showRenamePageModal && pageToRename && (
         <PageRenameModal
-          page={pageToRename}
-          onConfirm={handleRenamePageConfirm}
+          isOpen={showRenamePageModal}
+          currentName={pageToRename.name}
+          onRename={handleRenamePageConfirm}
           onClose={() => { setShowRenamePageModal(false); setPageToRename(null) }}
         />
       )}

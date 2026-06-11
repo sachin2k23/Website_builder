@@ -96,16 +96,40 @@ export function isAnyTemplate(elements = []) {
 // applyThemeToTemplate
 // ─────────────────────────────────────────────────────────────────────────────
 
+const THEME_COLOR_KEYS = ['fill', 'textColor', 'borderColor', 'shadowColor']
+
+function syncThemeColorsToBreakpoints(themedElements = []) {
+  return themedElements.map(element => {
+    const themedColors = THEME_COLOR_KEYS.reduce((acc, key) => {
+      if (element[key] !== undefined) acc[key] = element[key]
+      return acc
+    }, {})
+
+    if (Object.keys(themedColors).length === 0) return element
+
+    return ['desktop', 'tablet', 'phone', 'custom'].reduce((next, breakpoint) => {
+      if (!next[breakpoint] || typeof next[breakpoint] !== 'object') return next
+      return {
+        ...next,
+        [breakpoint]: {
+          ...next[breakpoint],
+          ...themedColors,
+        },
+      }
+    }, element)
+  })
+}
+
 export function applyThemeToTemplate(elements = [], theme = 'dark') {
-  if (isTechSummitTemplate(elements))           return applyTechSummitTheme(elements, theme)
-  if (isBoldSummitTemplate(elements))           return applyBoldSummitTheme(elements, theme)
-  if (isArtDecoTemplate(elements))              return applyArtDecoTheme(elements, theme)
-  if (isNeuSummitTemplate(elements))            return applyNeuSummitTheme(elements, theme)
-  if (isPlayfulGeometricTemplate(elements))     return applyPlayfulGeometricTheme(elements, theme)
-  if (isVaporWaveFestTemplate(elements))        return applyVaporWaveFestTheme(elements, theme)
-  if (isMinimalistMonochromeTemplate(elements)) return applyMinimalistMonochromeTheme(elements, theme)
-  if (isFlatDesignTemplate(elements))           return applyFlatDesignTheme(elements, theme)
-  if (isBotanicalOrganicTemplate(elements))     return applyBotanicalOrganicTheme(elements, theme)
+  if (isTechSummitTemplate(elements))           return syncThemeColorsToBreakpoints(applyTechSummitTheme(elements, theme))
+  if (isBoldSummitTemplate(elements))           return syncThemeColorsToBreakpoints(applyBoldSummitTheme(elements, theme))
+  if (isArtDecoTemplate(elements))              return syncThemeColorsToBreakpoints(applyArtDecoTheme(elements, theme))
+  if (isNeuSummitTemplate(elements))            return syncThemeColorsToBreakpoints(applyNeuSummitTheme(elements, theme))
+  if (isPlayfulGeometricTemplate(elements))     return syncThemeColorsToBreakpoints(applyPlayfulGeometricTheme(elements, theme))
+  if (isVaporWaveFestTemplate(elements))        return syncThemeColorsToBreakpoints(applyVaporWaveFestTheme(elements, theme))
+  if (isMinimalistMonochromeTemplate(elements)) return syncThemeColorsToBreakpoints(applyMinimalistMonochromeTheme(elements, theme))
+  if (isFlatDesignTemplate(elements))           return syncThemeColorsToBreakpoints(applyFlatDesignTheme(elements, theme))
+  if (isBotanicalOrganicTemplate(elements))     return syncThemeColorsToBreakpoints(applyBotanicalOrganicTheme(elements, theme))
   return elements
 }
 
@@ -161,7 +185,7 @@ export const TEMPLATES = {
     elements: techSummitElements,
     canvasSettings: {
       width:  1200,
-      height: 2976,
+      height: techSummitElements.canvasHeight || 2480,
       x: 0,
       y: 0,
       fill: '#F8FAFF',   // ← light bg, matches LIGHT.bg

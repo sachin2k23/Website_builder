@@ -1,4 +1,4 @@
-import { Plus, Settings, Play, Sparkles, RotateCcw, RotateCw, Download, Sun, Moon } from 'lucide-react'
+import { Plus, Settings, Play, Sparkles, RotateCcw, RotateCw, Download, Sun, Moon, Save } from 'lucide-react'
 
 export default function CanvasTopbar({
   onBack,
@@ -9,6 +9,8 @@ export default function CanvasTopbar({
   canRedo,
   onPreview,
   onExport,
+  onSave,
+  saveState = 'idle',
   onTemplateThemeToggle,
   projectName = 'My Project',
   templateTheme = 'light',   // ← controlled by Builder, no local state
@@ -85,6 +87,14 @@ export default function CanvasTopbar({
           title="Preview"
         >
           <Play size={13} />
+        </button>
+        <button
+          onClick={onSave}
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#2348D7] border border-[#C7D6FF] bg-[#F3F7FF] rounded-xl hover:bg-[#EAF0FF] transition-colors"
+          title="Save project"
+        >
+          <Save size={12} />
+          {saveState === 'saved' ? 'Saved' : 'Save'}
         </button>
         <button
           onClick={onExport}

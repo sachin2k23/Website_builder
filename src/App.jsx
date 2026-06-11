@@ -6,6 +6,15 @@ import Builder from './pages/Builder'
 import { TEMPLATES } from './utils/templates'
 import { getContentHeight } from './utils/editorGeometry'
 
+const APP_STORAGE_KEY = 'akashaveda-builder-state-v1'
+const defaultBuilderConfig = {
+  projectId: null,
+  elements: [],
+  name: 'My Project',
+  canvasSettings: null,
+  builderState: null,
+}
+
 const cloneElements = elements => elements.map(element => ({
   ...element,
   breakpoints: element.breakpoints ? structuredClone(element.breakpoints) : undefined,
@@ -50,15 +59,45 @@ const initialProjects = [
   }),
 ]
 
+function loadSavedAppState() {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const saved = window.localStorage.getItem(APP_STORAGE_KEY)
+    if (!saved) return null
+
+    const parsed = JSON.parse(saved)
+    if (!parsed || !Array.isArray(parsed.projects)) return null
+
+    return {
+      page: parsed.page === 'builder' ? 'builder' : 'dashboard',
+      projects: parsed.projects,
+      builderConfig: {
+        ...defaultBuilderConfig,
+        ...(parsed.builderConfig || {}),
+      },
+    }
+  } catch (error) {
+    console.warn('Could not load saved builder state', error)
+    return null
+  }
+}
+
+function saveAppState(nextState) {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(nextState))
+  } catch (error) {
+    console.warn('Could not save builder state', error)
+  }
+}
+
 export default function App() {
-  const [page, setPage] = useState('dashboard')
-  const [projects, setProjects] = useState(initialProjects)
-  const [builderConfig, setBuilderConfig] = useState({
-    projectId: null,
-    elements: [],
-    name: 'My Project',
-    canvasSettings: null,
-  })
+  const [savedAppState] = useState(() => loadSavedAppState())
+  const [page, setPage] = useState(() => savedAppState?.page || 'dashboard')
+  const [projects, setProjects] = useState(() => savedAppState?.projects || initialProjects)
+  const [builderConfig, setBuilderConfig] = useState(() => savedAppState?.builderConfig || defaultBuilderConfig)
 
   useEffect(() => {
     // Initialize theme from localStorage
@@ -66,8 +105,8 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', savedTheme)
 
     window.history.replaceState({
-      page: 'dashboard',
-      builderConfig: { projectId: null, elements: [], name: 'My Project', canvasSettings: null },
+      page,
+      builderConfig,
     }, '')
 
     function handlePopState(event) {
@@ -75,12 +114,12 @@ export default function App() {
 
       if (nextState?.page) {
         setPage(nextState.page)
-        setBuilderConfig(nextState.builderConfig ?? { projectId: null, elements: [], name: 'My Project', canvasSettings: null })
+        setBuilderConfig(nextState.builderConfig ?? defaultBuilderConfig)
         return
       }
 
-    setPage('dashboard')
-    setBuilderConfig({ projectId: null, elements: [], name: 'My Project', canvasSettings: null })
+      setPage('dashboard')
+      setBuilderConfig(defaultBuilderConfig)
     }
 
     window.addEventListener('popstate', handlePopState)
@@ -90,7 +129,11 @@ export default function App() {
     }
   }, [])
 
-  function navigateTo(nextPage, nextBuilderConfig = { projectId: null, elements: [], name: 'My Project', canvasSettings: null }) {
+  useEffect(() => {
+    saveAppState({ page, projects, builderConfig })
+  }, [page, projects, builderConfig])
+
+  function navigateTo(nextPage, nextBuilderConfig = defaultBuilderConfig) {
     setPage(nextPage)
     setBuilderConfig(nextBuilderConfig)
     window.history.pushState({ page: nextPage, builderConfig: nextBuilderConfig }, '')
@@ -107,6 +150,7 @@ export default function App() {
       name: project.name,
       canvasSettings: project.canvasSettings,
       templateKey: project.templateKey,
+      builderState: null,
     }
 
     setProjects(currentProjects => [project, ...currentProjects])
@@ -125,6 +169,7 @@ export default function App() {
       name: project.name,
       canvasSettings: project.canvasSettings,
       templateKey: project.templateKey,
+      builderState: project.builderState || null,
     }
 
     setProjects(currentProjects =>
@@ -147,6 +192,7 @@ export default function App() {
               ...changes,
               elements: changes.elements ? cloneElements(changes.elements) : project.elements,
               canvasSettings: changes.canvasSettings || project.canvasSettings,
+              builderState: changes.builderState || project.builderState,
               viewed: 'Viewed just now',
               lastViewedHours: 0,
               lastEditedHours: 0,
@@ -157,8 +203,56 @@ export default function App() {
   }, [])
 
   const handleBuilderProjectChange = useCallback((changes) => {
+    if (!builderConfig.projectId) return
+
     handleProjectChange(builderConfig.projectId, changes)
+
+    if (changes.builderState) {
+      const snapshot = changes.builderState
+
+      setBuilderConfig(currentConfig => ({
+        ...currentConfig,
+        elements: cloneElements(snapshot.elements || []),
+        canvasSettings: snapshot.canvasSettings,
+        name: snapshot.name,
+        builderState: snapshot,
+      }))
+    }
   }, [builderConfig.projectId, handleProjectChange])
+
+  const handleBuilderSave = useCallback((snapshot) => {
+    const nextBuilderConfig = {
+      ...builderConfig,
+      elements: cloneElements(snapshot.elements || []),
+      canvasSettings: snapshot.canvasSettings,
+      name: snapshot.name,
+      builderState: snapshot,
+    }
+
+    const nextProjects = projects.map(project =>
+      project.id === builderConfig.projectId
+        ? {
+            ...project,
+            name: snapshot.name,
+            elements: cloneElements(snapshot.elements || []),
+            canvasSettings: snapshot.canvasSettings,
+            builderState: snapshot,
+            viewed: 'Viewed just now',
+            lastViewedHours: 0,
+            lastEditedHours: 0,
+          }
+        : project,
+    )
+
+    setBuilderConfig(nextBuilderConfig)
+    setProjects(nextProjects)
+    saveAppState({
+      page: 'builder',
+      projects: nextProjects,
+      builderConfig: nextBuilderConfig,
+    })
+    window.history.replaceState({ page: 'builder', builderConfig: nextBuilderConfig }, '')
+  }, [builderConfig, projects])
 
   function handleArchiveProject(projectId) {
     setProjects((currentProjects) =>
@@ -215,8 +309,10 @@ export default function App() {
         <Builder
           initialElements={builderConfig.elements}
           initialCanvasSettings={builderConfig.canvasSettings}
+          initialBuilderState={builderConfig.builderState}
           projectName={builderConfig.name}
           onProjectChange={handleBuilderProjectChange}
+          onSave={handleBuilderSave}
           onBack={() => navigateTo('dashboard')}
         />
       )}

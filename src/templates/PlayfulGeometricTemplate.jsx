@@ -86,23 +86,11 @@ const playfulGeometricBaseElements = [
 
   // ══ HERO SECTION ════════════════════════════════════════════════════════════
   { id: 'pg-hero-bg', type: 'container', name: 'Hero Section', x: 0, y: 80, width: 1200, height: 680, fill: L.bg, radius: 0, opacity: 100 },
-  { id: 'pg-hero-deco-circle', type: 'container', name: 'Hero Deco Circle', x: -60, y: 100, width: 460, height: 460, fill: L.tertiary, borderColor: L.border, radius: 9999, opacity: 30 },
-  { id: 'pg-hero-deco-pink', type: 'container', name: 'Hero Pink Dot', x: 980, y: 140, width: 120, height: 120, fill: L.secondary, borderColor: L.border, radius: 9999, opacity: 40 },
-  { id: 'pg-hero-deco-green', type: 'container', name: 'Hero Green Square', x: 860, y: 540, width: 70, height: 70, fill: L.quaternary, borderColor: L.border, radius: 8, opacity: 50 },
   { id: 'pg-hero-chip', type: 'label', name: 'Hero Eyebrow', x: 76, y: 148, width: 320, height: 32, content: '✦ SEPT 19–21, 2026 / AMSTERDAM', fontSize: 12, fontWeight: 700, fontFamily: 'Outfit', textColor: L.accent, fill: L.violet10, radius: 9999, opacity: 100 },
   { id: 'pg-hero-title', type: 'heading', name: 'Hero Title', x: 72, y: 202, width: 680, height: 220, content: 'Where design\nmeets the future\nof technology.', fontSize: 64, fontWeight: 800, fontFamily: 'Outfit', textColor: L.fg, lineHeight: 1.06, opacity: 100 },
   { id: 'pg-hero-desc', type: 'paragraph', name: 'Hero Description', x: 76, y: 448, width: 520, height: 72, content: 'Three days of bold ideas, hands-on workshops, and the creative minds shaping tomorrow\'s digital world.', fontSize: 18, fontWeight: 400, fontFamily: 'Plus Jakarta Sans', textColor: L.fgMuted, lineHeight: 1.65, opacity: 100 },
   { id: 'pg-hero-primary', type: 'button', name: 'Primary CTA', x: 76, y: 554, width: 180, height: 52, content: 'Reserve Your Spot', fill: L.accent, textColor: L.accentFg, fontSize: 15, fontWeight: 700, fontFamily: 'Outfit', borderColor: L.border, radius: 9999, opacity: 100 },
   { id: 'pg-hero-secondary', type: 'button', name: 'Secondary CTA', x: 274, y: 554, width: 160, height: 52, content: 'View Schedule', fill: 'transparent', textColor: L.fg, fontSize: 15, fontWeight: 700, fontFamily: 'Outfit', borderColor: L.border, radius: 9999, opacity: 100 },
-  { id: 'pg-hero-card', type: 'container', name: 'Hero Visual Card', x: 730, y: 148, width: 390, height: 430, fill: L.card, borderColor: L.border, radius: 24, opacity: 100 },
-  { id: 'pg-hero-card-chip', type: 'label', name: 'Hero Card Chip', x: 760, y: 180, width: 130, height: 28, content: 'FEATURED EVENT', fontSize: 10, fontWeight: 800, fontFamily: 'Outfit', textColor: L.accentFg, fill: L.accent, radius: 9999, opacity: 100 },
-  { id: 'pg-hero-card-title', type: 'heading', name: 'Hero Card Title', x: 760, y: 228, width: 330, height: 80, content: 'Opening\nKeynote', fontSize: 38, fontWeight: 800, fontFamily: 'Outfit', textColor: L.fg, lineHeight: 1.1, opacity: 100 },
-  { id: 'pg-hero-card-speaker', type: 'paragraph', name: 'Hero Card Speaker', x: 760, y: 322, width: 330, height: 52, content: 'Featuring 50+ world-class speakers from design, technology, and culture.', fontSize: 14, fontFamily: 'Plus Jakarta Sans', textColor: L.fgMuted, lineHeight: 1.6, opacity: 100 },
-  { id: 'pg-hero-stat-a', type: 'heading', name: 'Hero Stat Speakers', x: 760, y: 416, width: 130, height: 44, content: '50+', fontSize: 40, fontWeight: 800, fontFamily: 'Outfit', textColor: L.accent, opacity: 100 },
-  { id: 'pg-hero-stat-b', type: 'heading', name: 'Hero Stat Attendees', x: 920, y: 416, width: 140, height: 44, content: '3,000', fontSize: 40, fontWeight: 800, fontFamily: 'Outfit', textColor: L.secondary, opacity: 100 },
-  { id: 'pg-hero-label-a', type: 'paragraph', name: 'Speakers Label', x: 760, y: 464, width: 130, height: 22, content: 'Speakers', fontSize: 13, fontFamily: 'Plus Jakarta Sans', textColor: L.fgMuted, opacity: 100 },
-  { id: 'pg-hero-label-b', type: 'paragraph', name: 'Attendees Label', x: 920, y: 464, width: 140, height: 22, content: 'Attendees', fontSize: 13, fontFamily: 'Plus Jakarta Sans', textColor: L.fgMuted, opacity: 100 },
-  { id: 'pg-hero-card-btn', type: 'button', name: 'Hero Card Button', x: 760, y: 512, width: 140, height: 44, content: 'Explore More', fill: L.tertiary, textColor: L.fg, fontSize: 13, fontWeight: 700, fontFamily: 'Outfit', borderColor: L.border, radius: 9999, opacity: 100 },
 
   // ══ STATS BAND ══════════════════════════════════════════════════════════════
   { id: 'pg-stats-bg', type: 'container', name: 'Stats Band', x: 0, y: 760, width: 1200, height: 140, fill: L.fg, radius: 0, opacity: 100 },
@@ -180,8 +168,6 @@ const playfulGeometricBaseElements = [
 
   // ══ PRICING / TICKETS ═══════════════════════════════════════════════════════
   { id: 'pg-pricing-bg', type: 'container', name: 'Pricing Section', x: 0, y: 2600, width: 1200, height: 620, fill: L.bg, radius: 0, opacity: 100 },
-  { id: 'pg-pricing-deco-1', type: 'container', name: 'Pricing Deco Circle', x: 50, y: 2660, width: 60, height: 60, fill: L.tertiary, borderColor: L.border, radius: 9999, opacity: 40 },
-  { id: 'pg-pricing-deco-2', type: 'container', name: 'Pricing Deco Square', x: 1090, y: 2800, width: 80, height: 80, fill: L.secondary, borderColor: L.border, radius: 8, opacity: 35 },
   { id: 'pg-pricing-kicker', type: 'label', name: 'Pricing Kicker', x: 100, y: 2660, width: 140, height: 28, content: '✦ TICKETS', fontSize: 11, fontWeight: 800, fontFamily: 'Outfit', textColor: L.quaternary, fill: L.green10, radius: 9999, opacity: 100 },
   { id: 'pg-pricing-title', type: 'heading', name: 'Pricing Heading', x: 100, y: 2704, width: 560, height: 66, content: 'Pick your pass and join us.', fontSize: 46, fontWeight: 800, fontFamily: 'Outfit', textColor: L.fg, lineHeight: 1.1, opacity: 100 },
   // Explorer ticket
@@ -235,8 +221,6 @@ const playfulGeometricBaseElements = [
 
   // ══ CTA SECTION ══════════════════════════════════════════════════════════════
   { id: 'pg-cta-bg', type: 'container', name: 'CTA Section', x: 0, y: 4000, width: 1200, height: 380, fill: L.fg, radius: 0, opacity: 100 },
-  { id: 'pg-cta-deco-1', type: 'container', name: 'CTA Deco Circle', x: 900, y: 4040, width: 200, height: 200, fill: L.accent, borderColor: 'transparent', radius: 9999, opacity: 20 },
-  { id: 'pg-cta-deco-2', type: 'container', name: 'CTA Deco Square', x: 1060, y: 4220, width: 100, height: 100, fill: L.tertiary, borderColor: 'transparent', radius: 12, opacity: 30 },
   { id: 'pg-cta-title', type: 'heading', name: 'CTA Title', x: 100, y: 4080, width: 740, height: 130, content: 'Join 3,000+ creatives\nthis September in Amsterdam.', fontSize: 52, fontWeight: 800, fontFamily: 'Outfit', textColor: '#FFFFFF', lineHeight: 1.1, opacity: 100 },
   { id: 'pg-cta-sub', type: 'paragraph', name: 'CTA Subtext', x: 100, y: 4232, width: 520, height: 48, content: 'Early bird tickets available now. Prices increase on August 1st.', fontSize: 16, fontFamily: 'Plus Jakarta Sans', textColor: 'rgba(255,255,255,0.60)', lineHeight: 1.6, opacity: 100 },
   { id: 'pg-cta-btn-primary', type: 'button', name: 'CTA Primary', x: 100, y: 4306, width: 200, height: 52, content: 'Reserve Your Spot', fill: L.accent, textColor: L.accentFg, fontSize: 15, fontWeight: 700, fontFamily: 'Outfit', borderColor: L.accentFg, radius: 9999, opacity: 100 },

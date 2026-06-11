@@ -86,9 +86,6 @@ export const boldSummitElements = [
   // ── HERO ──────────────────────────────────────────────────────────────────
   box('bs-hero-bg', 'Hero Section', 0, 72, 1200, 680, DARK.bg, 'transparent'),
 
-  // Decorative oversized background text
-  heading('bs-hero-deco-text', 'Decorative BG Text', -20, 100, 900, 200, 'DESIGN', 220, 900, DARK.border, { opacity: 40, letterSpacing: -0.06 }),
-
   // Eyebrow label
   label('bs-hero-eyebrow', 'Hero Eyebrow', 72, 160, 380, 26, 'MARCH 14–16, 2026  /  BERLIN, GERMANY', DARK.fgMuted, 'transparent', { letterSpacing: 0.15 }),
 
@@ -165,9 +162,6 @@ export const boldSummitElements = [
   // ── PROGRAM / SCHEDULE ────────────────────────────────────────────────────
   box('bs-program-bg', 'Program Section', 0, 1432, 1200, 560, DARK.bg, DARK.border, { borderTop: 1 }),
 
-  // Big decorative day number
-  heading('bs-prog-deco', 'Program Deco Number', 800, 1450, 420, 200, 'DAY 01', 160, 900, DARK.border, { opacity: 30, letterSpacing: -0.06 }),
-
   label('bs-prog-kicker', 'Program Kicker', 72, 1490, 160, 24, 'THE PROGRAM', DARK.accent, 'transparent', { letterSpacing: 0.2 }),
   box('bs-prog-kicker-bar', 'Program Kicker Bar', 72, 1518, 48, 2, DARK.accent, 'transparent'),
   heading('bs-prog-heading', 'Program Heading', 72, 1534, 500, 66, 'Three Days. Zero Filler.', 52, 900, DARK.fg, { letterSpacing: -0.04, lineHeight: 1.1 }),
@@ -223,7 +217,6 @@ export const boldSummitElements = [
 
   // ── TESTIMONIAL / PULL QUOTE ──────────────────────────────────────────────
   box('bs-quote-bg', 'Quote Section', 0, 2472, 1200, 320, DARK.accent, 'transparent'),
-  heading('bs-quote-deco', 'Quote Deco', 60, 2480, 100, 120, '❝', 110, 400, DARK.accentFg, { opacity: 30 }),
   heading('bs-quote-text', 'Pull Quote', 72, 2520, 880, 130, 'DesignConf changed the way I see every pixel I place.', 44, 700, DARK.accentFg, { letterSpacing: -0.04, lineHeight: 1.15, fontFamily: 'Playfair Display' }),
   para('bs-quote-attr', 'Quote Attribution', 72, 2670, 400, 22, '— Aaron Draplin, Graphic Designer & Author', 14, DARK.accentFg, { opacity: 70, letterSpacing: 0.05 }),
 
@@ -259,7 +252,6 @@ export const boldSummitElements = [
 
   // ── FINAL CTA BANNER ─────────────────────────────────────────────────────
   box('bs-cta-bg', 'Final CTA Section', 0, 3352, 1200, 360, DARK.bg, DARK.border, { borderTop: 1 }),
-  heading('bs-cta-deco', 'CTA Deco', -30, 3360, 800, 200, 'JOIN US', 160, 900, DARK.border, { opacity: 20, letterSpacing: -0.06 }),
   label('bs-cta-eyebrow', 'CTA Eyebrow', 72, 3400, 340, 24, 'BERLIN — MARCH 14–16, 2026', DARK.fgMuted, 'transparent', { letterSpacing: 0.15 }),
   heading('bs-cta-headline', 'CTA Headline', 72, 3434, 700, 100, 'Be Here When It Happens.', 72, 900, DARK.fg, { letterSpacing: -0.05, lineHeight: 1.05 }),
   btn('bs-cta-primary', 'CTA Primary', 72, 3556, 240, 56, 'REGISTER NOW →', DARK.accent, DARK.accentFg, DARK.accent, { fontWeight: 800, fontSize: 14, letterSpacing: 0.1 }),

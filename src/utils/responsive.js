@@ -561,6 +561,220 @@ export function autoResponsive(elements, desktopCanvasWidth = 1200, options = {}
   })
 }
 
+// ─── Template normalization ──────────────────────────────────────────────────
+//
+// Templates are authored as absolute-position editable elements. This pass keeps
+// that editing model, but makes generated tablet/phone buckets behave more like
+// responsive sections: compact full-width sections, keep elements inside the
+// viewport, and turn obvious card rows into predictable 2/1-column grids.
+
+const RESPONSIVE_SECTION_GAP = { tablet: 40, phone: 28 }
+const RESPONSIVE_SECTION_PAD = { tablet: 32, phone: 20 }
+const RESPONSIVE_CARD_GAP    = { tablet: 24, phone: 16 }
+const RESPONSIVE_CARD_PAD_X  = { tablet: 24, phone: 20 }
+
+function isLayoutContainer(el) {
+  return BOX_TYPES.has(el.type)
+}
+
+function isFullBleedAt(el, breakpointId, canvasWidth) {
+  const p = getElementProperties(el, breakpointId)
+  return isLayoutContainer(el) && p.x <= 8 && p.width >= canvasWidth - 16
+}
+
+function getDesktopBox(el) {
+  const p = getElementProperties(el, 'desktop')
+  return { x: p.x, y: p.y, width: p.width, height: p.height }
+}
+
+function containsDesktop(parent, child, tolerance = 8) {
+  const p = getDesktopBox(parent)
+  const c = getDesktopBox(child)
+  if (parent.id === child.id) return false
+  if (p.width * p.height <= c.width * c.height) return false
+  return (
+    c.x >= p.x - tolerance &&
+    c.y >= p.y - tolerance &&
+    c.x + c.width <= p.x + p.width + tolerance &&
+    c.y + c.height <= p.y + p.height + tolerance
+  )
+}
+
+function findDesktopParent(child, candidates) {
+  return candidates
+    .filter(parent => containsDesktop(parent, child))
+    .sort((a, b) => {
+      const aa = getDesktopBox(a)
+      const bb = getDesktopBox(b)
+      return (aa.width * aa.height) - (bb.width * bb.height)
+    })[0] || null
+}
+
+function looksLikeCard(el) {
+  const haystack = `${el.id || ''} ${el.name || ''}`.toLowerCase()
+  if (!isLayoutContainer(el)) return false
+  if (/(speaker|performer|ticket|pricing|price|tier|pass|card)/.test(haystack)) return true
+  const p = getElementProperties(el, 'desktop')
+  return p.width >= 180 && p.width <= 420 && p.height >= 120 && p.height <= 420
+}
+
+function groupCardRows(elements) {
+  const sections = elements.filter(el => isLayoutContainer(el))
+  const cards = elements.filter(looksLikeCard)
+  const bySection = new Map()
+
+  cards.forEach(card => {
+    const parent = findDesktopParent(card, sections.filter(section => section.id !== card.id))
+    const parentId = parent?.id || '__root__'
+    if (!bySection.has(parentId)) bySection.set(parentId, [])
+    bySection.get(parentId).push(card)
+  })
+
+  const rows = []
+  bySection.forEach(group => {
+    const sorted = [...group].sort((a, b) => getDesktopBox(a).y - getDesktopBox(b).y)
+    const buckets = []
+
+    sorted.forEach(card => {
+      const y = getDesktopBox(card).y
+      const bucket = buckets.find(row => Math.abs(row.y - y) <= 90)
+      if (bucket) bucket.cards.push(card)
+      else buckets.push({ y, cards: [card] })
+    })
+
+    buckets.forEach(row => {
+      const cardsInRow = row.cards.sort((a, b) => getDesktopBox(a).x - getDesktopBox(b).x)
+      if (cardsInRow.length >= 3) rows.push(cardsInRow)
+    })
+  })
+
+  return rows
+}
+
+function patchElement(list, id, breakpointId, patch) {
+  return list.map(el => el.id === id ? setBreakpointProps(el, breakpointId, patch) : el)
+}
+
+function transformContainedChildren(list, card, nextCardBox, breakpointId) {
+  const cardDesktop = getElementProperties(card, 'desktop')
+  const children = list.filter(el => containsDesktop(card, el))
+  const scaleX = nextCardBox.width / Math.max(1, cardDesktop.width)
+  const yDelta = nextCardBox.y - cardDesktop.y
+
+  return children.reduce((acc, child) => {
+    const childDesktop = getElementProperties(child, 'desktop')
+    const relX = childDesktop.x - cardDesktop.x
+    const nextX = Math.round(nextCardBox.x + relX * scaleX)
+    const nextW = Math.max(20, Math.round(childDesktop.width * scaleX))
+    return patchElement(acc, child.id, breakpointId, {
+      x: nextX,
+      y: Math.round(childDesktop.y + yDelta),
+      width: nextW,
+    })
+  }, list)
+}
+
+function normalizeCardRows(elements, breakpointId, canvasWidth) {
+  const rows = groupCardRows(elements)
+  if (!rows.length) return elements
+
+  return rows.reduce((list, row) => {
+    const cols = breakpointId === 'phone'
+      ? 1
+      : row.length === 4
+        ? 2
+        : Math.min(3, row.length)
+    const gap = RESPONSIVE_CARD_GAP[breakpointId]
+    const padX = RESPONSIVE_CARD_PAD_X[breakpointId]
+    const cardW = Math.floor((canvasWidth - padX * 2 - gap * (cols - 1)) / cols)
+    const top = Math.min(...row.map(card => getElementProperties(card, breakpointId).y))
+    let nextList = list
+
+    row.forEach((card, index) => {
+      const current = getElementProperties(card, breakpointId)
+      const col = index % cols
+      const rowIndex = Math.floor(index / cols)
+      const x = padX + col * (cardW + gap)
+      const y = top + rowIndex * (current.height + gap)
+      const patch = { x, y, width: cardW }
+      nextList = patchElement(nextList, card.id, breakpointId, patch)
+      nextList = transformContainedChildren(nextList, card, { ...current, ...patch }, breakpointId)
+    })
+
+    return nextList
+  }, elements)
+}
+
+function compactSections(elements, breakpointId, canvasWidth) {
+  const sections = elements
+    .filter(el => isFullBleedAt(el, breakpointId, canvasWidth))
+    .sort((a, b) => getElementProperties(a, breakpointId).y - getElementProperties(b, breakpointId).y)
+
+  if (!sections.length) return elements
+
+  let list = elements
+  let cursor = 0
+
+  sections.forEach(section => {
+    const before = getElementProperties(section, breakpointId)
+    const contained = list.filter(el => containsDesktop(section, el))
+    const minY = contained.reduce((acc, el) => Math.min(acc, getElementProperties(el, breakpointId).y), Infinity)
+    const maxBottom = contained.reduce((acc, el) => {
+      const p = getElementProperties(el, breakpointId)
+      return Math.max(acc, p.y + p.height)
+    }, before.y + before.height)
+
+    const sectionTop = cursor
+    const childDelta = Number.isFinite(minY)
+      ? sectionTop + RESPONSIVE_SECTION_PAD[breakpointId] - minY
+      : sectionTop - before.y
+    const nextHeight = Number.isFinite(minY)
+      ? Math.max(80, maxBottom + childDelta - sectionTop + RESPONSIVE_SECTION_PAD[breakpointId])
+      : before.height
+
+    list = patchElement(list, section.id, breakpointId, {
+      x: 0,
+      y: sectionTop,
+      width: canvasWidth,
+      height: nextHeight,
+    })
+
+    contained.forEach(child => {
+      const p = getElementProperties(child, breakpointId)
+      list = patchElement(list, child.id, breakpointId, {
+        y: Math.round(p.y + childDelta),
+      })
+    })
+
+    cursor = sectionTop + nextHeight + RESPONSIVE_SECTION_GAP[breakpointId]
+  })
+
+  return list
+}
+
+function clampToViewport(elements, breakpointId, canvasWidth) {
+  const edgePad = breakpointId === 'phone' ? 20 : 24
+  return elements.map(el => {
+    if (isFullBleedAt(el, breakpointId, canvasWidth)) {
+      return setBreakpointProps(el, breakpointId, { x: 0, width: canvasWidth })
+    }
+    const p = getElementProperties(el, breakpointId)
+    const width = Math.min(p.width, canvasWidth - edgePad * 2)
+    const x = Math.min(Math.max(0, p.x), Math.max(0, canvasWidth - width))
+    return setBreakpointProps(el, breakpointId, { x, width })
+  })
+}
+
+function normalizeResponsiveTemplate(elements) {
+  return ['tablet', 'phone'].reduce((list, breakpointId) => {
+    const canvasWidth = breakpointId === 'tablet' ? TABLET_W : PHONE_W
+    let next = normalizeCardRows(list, breakpointId, canvasWidth)
+    next = compactSections(next, breakpointId, canvasWidth)
+    next = clampToViewport(next, breakpointId, canvasWidth)
+    return next
+  }, elements)
+}
+
 // ─── Grid detection ───────────────────────────────────────────────────────────
 
 export function detectGrid(elements, tolerance = 20) {
@@ -627,8 +841,6 @@ export function applySmartResponsive(elements, desktopCanvasWidth = 1200) {
     })
   })
 
-  return autoResponsive(result, desktopCanvasWidth, { preserveExisting: false })
+  return normalizeResponsiveTemplate(autoResponsive(result, desktopCanvasWidth, { preserveExisting: false }))
 }
-
-
 
