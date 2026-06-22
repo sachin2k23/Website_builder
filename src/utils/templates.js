@@ -12,14 +12,14 @@ import {
   isArtDecoTemplate,
   applyArtDecoTheme,
   getArtDecoCanvasFill,
-} from '../templates/ArtDecoTemplate'
+} from '../templates/Artdecotemplate'
 
 import {
   boldSummitElements,
   isBoldSummitTemplate,
   applyBoldSummitTheme,
   getBoldSummitCanvasFill,
-} from '../templates/BoldSummitTemplate'
+} from '../templates/Boldsummittemplate'
 
 import {
   neuSummitElements,
@@ -33,21 +33,21 @@ import {
   isPlayfulGeometricTemplate,
   applyPlayfulGeometricTheme,
   getPlayfulGeometricCanvasFill,
-} from '../templates/PlayfulGeometricTemplate'
+} from '../templates/Playfulgeometrictemplate'
 
 import {
   vaporWaveFestElements,
   isVaporWaveFestTemplate,
   applyVaporWaveFestTheme,
   getVaporWaveFestCanvasFill,
-} from '../templates/VaporWaveFestTemplate'
+} from '../templates/Vaporwavefesttemplate'
 
 import {
   minimalistMonochromeElements,
   isMinimalistMonochromeTemplate,
   applyMinimalistMonochromeTheme,
   getMinimalistMonochromeCanvasFill,
-} from '../templates/MinimalistMonochromeTemplate'
+} from '../templates/Minimalistmonochrometemplate'
 
 import {
   flatDesignElements,
